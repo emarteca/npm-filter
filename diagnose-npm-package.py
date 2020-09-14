@@ -9,6 +9,9 @@ import os
 import logging
 import argparse
 
+VERBOSE_MODE = False
+TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint"]
+
 logging.getLogger('scrapy').propagate = False
 
 def run_command( command):
@@ -45,15 +48,90 @@ def run_build( MANAGER, pkg_json):
 	error = None
 	return( error)
 
+def called_in_command( str_comm, command, MANAGER):
+	if command.find( str_comm) == 0:
+		return( True)
+	if command.find( "&&" + str_comm) > -1 or command.find( "&& " + str_comm) > -1:
+		return( True)
+	return( False)
+
+
+class TestInfo:
+	TRACKED_INFRAS = {
+		"mocha": "mocha",
+		"jest": "jest",
+		"jasmine": "jasmine",
+		"tap": "tap",
+		"lab": "lab",
+		"ava": "ava",
+		"node": "CUSTOM INFRA: node",
+	}
+	TRACKED_COVERAGE = {
+		"istanbul": "istanbul -- coverage testing",
+		"nyc": "nyc -- coverage testing",
+		"coveralls": "coveralls -- coverage testing",
+		"c8": "c8 -- coverage testing"
+	}
+	TRACKED_LINTERS = {
+		"eslint": "eslint -- linter",
+		"tslint": "tslint -- linter",
+		"xx": "xx -- linter",
+		"standard": "standard -- linter"
+	}
+	def __init__(self, success, error_stream, output_stream, MANAGER):
+		self.success = success
+		self.error_stream = error_stream
+		self.output_stream = output_stream
+		self.MANAGER = MANAGER
+
+	def set_test_command( self, test_command):
+		self.test_command = test_command
+
+	def compute_test_infras( self):
+		self.test_infras = []
+		self.test_covs = []
+		self.test_lints = []
+		if self.test_command:
+			self.test_infras += [ TestInfo.TRACKED_INFRAS[ti] for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.MANAGER) ]
+			self.test_covs += [ TestInfo.TRACKED_COVERAGE[ti] for ti in TestInfo.TRACKED_COVERAGE if called_in_command(ti, self.test_command, self.MANAGER) ]
+			self.test_lints += [ TestInfo.TRACKED_LINTERS[ti] for ti in TestInfo.TRACKED_LINTERS if called_in_command(ti, self.test_command, self.MANAGER) ]
+		self.test_infras = list(set(self.test_infras))
+		self.test_covs = list(set(self.test_covs))
+		self.test_lints = list(set(self.test_lints))
+		# TODO: maybe we can also figure it out from the output stream
+
+	def __str__(self):
+		to_ret = ""
+		if self.success == "ERROR":
+			to_ret += "ERROR"
+			if VERBOSE_MODE:
+				to_ret += "\nError output: " + self.error_stream.decode('utf-8')
+		else:
+			to_ret += "SUCCESS"
+		if VERBOSE_MODE:
+			to_ret += "\nOutput stream: " + self.output_stream.decode('utf-8')
+		if self.test_infras and self.test_infras != []:
+			to_ret += "\nTest infras: " + str(self.test_infras)
+		if self.test_covs and self.test_covs != []:
+			to_ret += "\nCoverage testing: " + str(self.test_covs)
+		if self.test_lints and self.test_lints != []:
+			to_ret += "\nLinter: " + str(self.test_lints)
+		return( to_ret)
+
 def run_tests( MANAGER, pkg_json):
-	test_scripts = [t for t in pkg_json["scripts"].keys() if not t.find("test") == -1]
+	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in TRACKED_TEST_COMMANDS]) == {-1}]
 	print("Trying test commands: ") 
 	print(test_scripts)
+	test_info = {}
 	for t in test_scripts:
 		print("Running: " + MANAGER + t)
 		error, output, retcode = run_command( MANAGER + t)
-		print( output)
-	return( retcode, [])
+		test_info[t] = TestInfo( (retcode == 0), error, output, MANAGER)
+		test_info[t].set_test_command( pkg_json["scripts"][t])
+		test_info[t].compute_test_infras()
+		print( test_info[t])
+		# print( get_test_info(error, output))
+	return( retcode, test_info)
 
 def diagnose_package( repo_link):
 	repo_name = repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
