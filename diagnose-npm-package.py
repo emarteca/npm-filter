@@ -56,15 +56,32 @@ def called_in_command( str_comm, command, MANAGER):
 	return( False)
 
 
+def test_cond_count_jest( test_output, condition):
+	results = re.findall( r'Tests:.*\d+ ' + condition, test_output)
+	num_cond = 0
+	for r in results:
+		temp = r.split()
+		num_cond += int( temp[temp.index(condition) - 1])  
+	return( num_cond)
+
+def test_cond_count_mocha( test_output, condition):
+	results = re.findall( r'.*\d+ ' + condition + '.*', test_output)
+	num_cond = 0
+	for r in results:
+		temp = r.split()
+		num_cond += int( temp[temp.index(condition) - 1])  
+	return( num_cond)
+
+
 class TestInfo:
 	TRACKED_INFRAS = {
-		"mocha": "mocha",
-		"jest": "jest",
-		"jasmine": "jasmine",
-		"tap": "tap",
-		"lab": "lab",
-		"ava": "ava",
-		"node": "CUSTOM INFRA: node",
+		"mocha": {"name": "mocha", "output_checkers": [test_cond_count_mocha], "passing": ["passing"], "failing": ["failing"]},
+		"jest": {"name": "jest", "output_checkers": [test_cond_count_jest], "passing": ["passed"], "failing": ["failed"]},
+		"jasmine": {"name": "jasmine", "output_checkers": [], "passing": [], "failing": []},
+		"tap": {"name": "tap", "output_checkers": [], "passing": [], "failing": []},
+		"lab": {"name": "lab", "output_checkers": [], "passing": [], "failing": []},
+		"ava": {"name": "ava", "output_checkers": [], "passing": [], "failing": []},
+		"node": {"name": "CUSTOM INFRA: node", "output_checkers": [test_cond_count_jest, test_cond_count_mocha], "passing": ["passing", "passed"], "failing": ["failing", "failed"]},
 	}
 	TRACKED_COVERAGE = {
 		"istanbul": "istanbul -- coverage testing",
@@ -83,6 +100,12 @@ class TestInfo:
 		self.error_stream = error_stream
 		self.output_stream = output_stream
 		self.MANAGER = MANAGER
+		# start all other fields as None
+		self.test_infras = None
+		self.test_covs = None
+		self.test_lints = None
+		self.num_passing = None
+		self.num_failing = None
 
 	def set_test_command( self, test_command):
 		self.test_command = test_command
@@ -92,13 +115,25 @@ class TestInfo:
 		self.test_covs = []
 		self.test_lints = []
 		if self.test_command:
-			self.test_infras += [ TestInfo.TRACKED_INFRAS[ti] for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.MANAGER) ]
+			self.test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.MANAGER) ]
 			self.test_covs += [ TestInfo.TRACKED_COVERAGE[ti] for ti in TestInfo.TRACKED_COVERAGE if called_in_command(ti, self.test_command, self.MANAGER) ]
 			self.test_lints += [ TestInfo.TRACKED_LINTERS[ti] for ti in TestInfo.TRACKED_LINTERS if called_in_command(ti, self.test_command, self.MANAGER) ]
 		self.test_infras = list(set(self.test_infras))
 		self.test_covs = list(set(self.test_covs))
 		self.test_lints = list(set(self.test_lints))
 		# TODO: maybe we can also figure it out from the output stream
+
+	def compute_test_stats( self):
+		if not self.test_infras or self.test_infras == []:
+			return
+		test_output = self.output_stream.decode('utf-8') + self.error_stream.decode('utf-8')
+		self.num_passing = 0
+		self.num_failing = 0
+		for infra in self.test_infras:
+			for checker in TestInfo.TRACKED_INFRAS[infra]["output_checkers"]:
+				self.num_passing += sum([checker( test_output, passing) for passing in TestInfo.TRACKED_INFRAS[infra]["passing"]])
+				self.num_failing += sum([checker( test_output, failing) for failing in TestInfo.TRACKED_INFRAS[infra]["failing"]])
+
 
 	def __str__(self):
 		to_ret = ""
@@ -108,6 +143,8 @@ class TestInfo:
 				to_ret += "\nError output: " + self.error_stream.decode('utf-8')
 		else:
 			to_ret += "SUCCESS"
+			if self.num_passing is not None and self.num_failing is not None:
+				to_ret += "\nPassing tests: " + str(self.num_passing) + "\nFailing tests: " + str(self.num_failing)
 		if VERBOSE_MODE:
 			to_ret += "\nOutput stream: " + self.output_stream.decode('utf-8')
 		if self.test_infras and self.test_infras != []:
@@ -129,6 +166,7 @@ def run_tests( MANAGER, pkg_json):
 		test_info[t] = TestInfo( (retcode == 0), error, output, MANAGER)
 		test_info[t].set_test_command( pkg_json["scripts"][t])
 		test_info[t].compute_test_infras()
+		test_info[t].compute_test_stats()
 		print( test_info[t])
 		# print( get_test_info(error, output))
 	return( retcode, test_info)
