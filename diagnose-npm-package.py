@@ -55,7 +55,7 @@ def run_build( manager, pkg_json):
 	for b in build_scripts:
 		print("Running: " + manager + b)
 		error, output, retcode = run_command( manager + b)
-		if retcode != 0:
+		if retcode != 0 and build_scripts.count(b) < 2:
 			print("ERROR running command: " + b)
 			build_scripts += [b] # re-add it onto the end of the list, and try running it again after the other build commands
 	return( retcode)
