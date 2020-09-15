@@ -11,6 +11,8 @@ import argparse
 
 VERBOSE_MODE = False
 TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint"]
+IGNORED_COMMANDS = ["watch"]
+TRACKED_BUILD_COMMANDS = ["build", "compile"]
 
 logging.getLogger('scrapy').propagate = False
 
@@ -20,35 +22,62 @@ def run_command( command):
 	return( error, output, process.returncode)
 
 def run_installation( pkg_json):
-	MANAGER = ""
+	manager = ""
 
 	# if there is a yarn lock file use yarn
 	# if there is a package-lock, use npm
 	# if there is neither, try npm first, and if that fails use yarn
 	if os.path.exists( "yarn.lock"):
 		print("yarn detected -- installing using yarn")
-		MANAGER = "yarn "
+		manager = "yarn "
 		error, output, retcode = run_command( "yarn")
 	elif os.path.exists( "package-lock.json"):
 		print("package-lock detected -- installing using npm")
-		MANAGER = "npm run "
+		manager = "npm run "
 		error, output, retcode = run_command( "npm install")
 	else:
 		print( "No installer detected -- trying npm")
-		MANAGER = "npm run "
+		manager = "npm run "
 		error, output, retcode = run_command( "npm install")
 		if retcode != 0:
 			print( "No installer detected -- tried npm, error, now trying yarn")
 			print(error)
-			MANAGER = "yarn "
+			manager = "yarn "
 			error, output, retcode = run_command( "yarn")
-	return( (MANAGER, retcode))
+	return( (manager, retcode))
 
-def run_build( MANAGER, pkg_json):
-	error = None
-	return( error)
+def run_build( manager, pkg_json):
+	retcode = 0
+	build_scripts = [b for b in pkg_json["scripts"].keys() if not set([ b.find(b_com) for b_com in TRACKED_BUILD_COMMANDS]) == {-1}]
+	build_scripts = [b for b in build_scripts if set([b.find(ig_com) for ig_com in IGNORED_COMMANDS]) == {-1}]
+	print("Trying build commands: ") 
+	print(build_scripts)
+	for b in build_scripts:
+		print("Running: " + manager + b)
+		error, output, retcode = run_command( manager + b)
+		if retcode != 0:
+			print("ERROR running command: " + b)
+			build_scripts += [b] # re-add it onto the end of the list, and try running it again after the other build commands
+	return( retcode)
 
-def called_in_command( str_comm, command, MANAGER):
+def run_tests( manager, pkg_json):
+	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in TRACKED_TEST_COMMANDS]) == {-1}]
+	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in IGNORED_COMMANDS]) == {-1}]
+	print("Trying test commands: ") 
+	print(test_scripts)
+	test_info = {}
+	for t in test_scripts:
+		print("Running: " + manager + t)
+		error, output, retcode = run_command( manager + t)
+		test_info[t] = TestInfo( (retcode == 0), error, output, manager)
+		test_info[t].set_test_command( pkg_json["scripts"][t])
+		test_info[t].compute_test_infras()
+		test_info[t].compute_test_stats()
+		print( test_info[t])
+		# print( get_test_info(error, output))
+	return( retcode, test_info)
+
+def called_in_command( str_comm, command, manager):
 	if command.find( str_comm) == 0:
 		return( True)
 	if command.find( "&&" + str_comm) > -1 or command.find( "&& " + str_comm) > -1:
@@ -95,11 +124,11 @@ class TestInfo:
 		"xx": "xx -- linter",
 		"standard": "standard -- linter"
 	}
-	def __init__(self, success, error_stream, output_stream, MANAGER):
+	def __init__(self, success, error_stream, output_stream, manager):
 		self.success = success
 		self.error_stream = error_stream
 		self.output_stream = output_stream
-		self.MANAGER = MANAGER
+		self.manager = manager
 		# start all other fields as None
 		self.test_infras = None
 		self.test_covs = None
@@ -115,9 +144,9 @@ class TestInfo:
 		self.test_covs = []
 		self.test_lints = []
 		if self.test_command:
-			self.test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.MANAGER) ]
-			self.test_covs += [ TestInfo.TRACKED_COVERAGE[ti] for ti in TestInfo.TRACKED_COVERAGE if called_in_command(ti, self.test_command, self.MANAGER) ]
-			self.test_lints += [ TestInfo.TRACKED_LINTERS[ti] for ti in TestInfo.TRACKED_LINTERS if called_in_command(ti, self.test_command, self.MANAGER) ]
+			self.test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.manager) ]
+			self.test_covs += [ TestInfo.TRACKED_COVERAGE[ti] for ti in TestInfo.TRACKED_COVERAGE if called_in_command(ti, self.test_command, self.manager) ]
+			self.test_lints += [ TestInfo.TRACKED_LINTERS[ti] for ti in TestInfo.TRACKED_LINTERS if called_in_command(ti, self.test_command, self.manager) ]
 		self.test_infras = list(set(self.test_infras))
 		self.test_covs = list(set(self.test_covs))
 		self.test_lints = list(set(self.test_lints))
@@ -148,28 +177,12 @@ class TestInfo:
 		if VERBOSE_MODE:
 			to_ret += "\nOutput stream: " + self.output_stream.decode('utf-8')
 		if self.test_infras and self.test_infras != []:
-			to_ret += "\nTest infras: " + str(self.test_infras)
+			to_ret += "\nTest infras: " + str([TestInfo.TRACKED_INFRAS[infra]["name"] for infra in self.test_infras])
 		if self.test_covs and self.test_covs != []:
 			to_ret += "\nCoverage testing: " + str(self.test_covs)
 		if self.test_lints and self.test_lints != []:
 			to_ret += "\nLinter: " + str(self.test_lints)
 		return( to_ret)
-
-def run_tests( MANAGER, pkg_json):
-	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in TRACKED_TEST_COMMANDS]) == {-1}]
-	print("Trying test commands: ") 
-	print(test_scripts)
-	test_info = {}
-	for t in test_scripts:
-		print("Running: " + MANAGER + t)
-		error, output, retcode = run_command( MANAGER + t)
-		test_info[t] = TestInfo( (retcode == 0), error, output, MANAGER)
-		test_info[t].set_test_command( pkg_json["scripts"][t])
-		test_info[t].compute_test_infras()
-		test_info[t].compute_test_stats()
-		print( test_info[t])
-		# print( get_test_info(error, output))
-	return( retcode, test_info)
 
 def diagnose_package( repo_link):
 	repo_name = repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
@@ -202,16 +215,19 @@ def diagnose_package( repo_link):
   		process.exit(0)
 
 	# first, the install
-	(MANAGER, retcode) = run_installation( pkg_json)
+	(manager, retcode) = run_installation( pkg_json)
 	if retcode != 0:
 		print("ERROR -- installation failed")
 		process.exit(0)
 
 	# now, proceed with the build
-	retcode = run_build( MANAGER, pkg_json)
+	retcode = run_build( manager, pkg_json)
+	if retcode != 0:
+		print("ERROR -- build failed")
+		process.exit(0)
 
 	# then, the testing
-	(retcode, test_info) = run_tests( MANAGER, pkg_json)
+	(retcode, test_info) = run_tests( manager, pkg_json)
 
 
 	# move back to the original working directory
