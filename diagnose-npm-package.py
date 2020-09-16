@@ -84,33 +84,73 @@ def called_in_command( str_comm, command, manager):
 		return( True)
 	return( False)
 
-
-def test_cond_count_jest( test_output, condition):
-	results = re.findall( r'Tests:.*\d+ ' + condition, test_output)
+def test_cond_count( test_output, regex_fct, condition, offset):
+	results = re.findall( regex_fct(condition), test_output)
 	num_cond = 0
 	for r in results:
 		temp = r.split()
-		num_cond += int( temp[temp.index(condition) - 1])  
-	return( num_cond)
-
-def test_cond_count_mocha( test_output, condition):
-	results = re.findall( r'.*\d+ ' + condition + '.*', test_output)
-	num_cond = 0
-	for r in results:
-		temp = r.split()
-		num_cond += int( temp[temp.index(condition) - 1])  
+		num_cond += int( temp[temp.index(condition) + offset])  
 	return( num_cond)
 
 
 class TestInfo:
 	TRACKED_INFRAS = {
-		"mocha": {"name": "mocha", "output_checkers": [test_cond_count_mocha], "passing": ["passing"], "failing": ["failing"]},
-		"jest": {"name": "jest", "output_checkers": [test_cond_count_jest], "passing": ["passed"], "failing": ["failed"]},
-		"jasmine": {"name": "jasmine", "output_checkers": [], "passing": [], "failing": []},
-		"tap": {"name": "tap", "output_checkers": [], "passing": [], "failing": []},
-		"lab": {"name": "lab", "output_checkers": [], "passing": [], "failing": []},
-		"ava": {"name": "ava", "output_checkers": [], "passing": [], "failing": []},
-		"node": {"name": "CUSTOM INFRA: node", "output_checkers": [test_cond_count_jest, test_cond_count_mocha], "passing": ["passing", "passed"], "failing": ["failing", "failed"]},
+		"mocha": {
+			"name": "mocha", 
+			"output_regex_fct": [
+				lambda condition: r'.*\d+ ' + condition + '.*'
+			], 
+			"passing": [ ("passing", -1)], 
+			"failing": [ ("failing", -1)]
+		},
+		"jest": {
+			"name": "jest", 
+			"output_regex_fct": [
+				lambda condition: r'Tests:.*\d+ ' + condition
+			], 
+			"passing": [ ("passed", -1)], 
+			"failing": [ ("failed", -1)]
+		},
+		"jasmine": {
+			"name": "jasmine", 
+			"output_regex_fct": [], 
+			"passing": [], 
+			"failing": []
+		},
+		"tap": {
+			"name": "tap", 
+			"output_regex_fct": [
+				lambda condition: r'# ' + condition + '.*\d+'
+			], 
+			"passing": [ ("pass", 1)], 
+			"failing": [ ("fail", 1)]
+		},
+		"lab": {
+			"name": "lab", 
+			"output_regex_fct": [], 
+			"passing": [], 
+			"failing": []
+		},
+		"ava": {
+			"name": "ava", 
+			"output_regex_fct": [], 
+			"passing": [], 
+			"failing": []
+		},
+		"node": {
+			"name": "CUSTOM INFRA: node", 
+			"output_regex_fct": [
+				lambda condition: r'.*\d+ ' + condition + '.*', 	# mocha
+				lambda condition: r'Tests:.*\d+ ' + condition, 		# jest
+				lambda condition: r'# ' + condition + '.*d+'		# tap
+			], 
+			"passing": [ ("passing", -1), 
+						 ("passed", -1),
+						 ("pass", 1)], 
+			"failing": [ ("failing", -1), 
+						 ("failed", -1),
+						 ("fail", 1)]
+		},
 	}
 	TRACKED_COVERAGE = {
 		"istanbul": "istanbul -- coverage testing",
@@ -159,9 +199,9 @@ class TestInfo:
 		self.num_passing = 0
 		self.num_failing = 0
 		for infra in self.test_infras:
-			for checker in TestInfo.TRACKED_INFRAS[infra]["output_checkers"]:
-				self.num_passing += sum([checker( test_output, passing) for passing in TestInfo.TRACKED_INFRAS[infra]["passing"]])
-				self.num_failing += sum([checker( test_output, failing) for failing in TestInfo.TRACKED_INFRAS[infra]["failing"]])
+			for regex_fct in TestInfo.TRACKED_INFRAS[infra]["output_regex_fct"]:
+				self.num_passing += sum([test_cond_count( test_output, regex_fct, passing[0], passing[1]) for passing in TestInfo.TRACKED_INFRAS[infra]["passing"]])
+				self.num_failing += sum([test_cond_count( test_output, regex_fct, failing[0], failing[1]) for failing in TestInfo.TRACKED_INFRAS[infra]["failing"]])
 
 
 	def __str__(self):
