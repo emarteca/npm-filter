@@ -133,23 +133,28 @@ class TestInfo:
 		},
 		"ava": {
 			"name": "ava", 
-			"output_regex_fct": [], 
-			"passing": [], 
-			"failing": []
+			"output_regex_fct": [
+				lambda condition: r'.*\d+ tests? ' + condition
+			], 
+			"passing": [ ("passed", -2)], 
+			"failing": [ ("failed", -2)]
 		},
 		"node": {
 			"name": "CUSTOM INFRA: node", 
 			"output_regex_fct": [
 				lambda condition: r'.*\d+ ' + condition + '.*', 	# mocha
 				lambda condition: r'Tests:.*\d+ ' + condition, 		# jest
-				lambda condition: r'# ' + condition + '.*d+'		# tap
+				lambda condition: r'# ' + condition + '.*d+',		# tap
+				lambda condition: r'.*\d+ tests? ' + condition		# ava
 			], 
 			"passing": [ ("passing", -1), 
 						 ("passed", -1),
-						 ("pass", 1)], 
+						 ("pass", 1),
+						 ("passed", -2),], 
 			"failing": [ ("failing", -1), 
 						 ("failed", -1),
-						 ("fail", 1)]
+						 ("fail", 1),
+						 ("failed", -2),]
 		},
 	}
 	TRACKED_COVERAGE = {
@@ -264,7 +269,7 @@ def diagnose_package( repo_link):
 	retcode = run_build( manager, pkg_json)
 	if retcode != 0:
 		print("ERROR -- build failed")
-		process.exit(0)
+		print("Continuing anyway...")
 
 	# then, the testing
 	(retcode, test_info) = run_tests( manager, pkg_json)
