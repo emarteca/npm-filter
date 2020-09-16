@@ -5,7 +5,7 @@ Details Forthcoming...
 
 ## System Requirements
 This program assumes you have the following installed:
-* python3 (running as python)
+* python3 (running as python), with bs4 and scrapy libraries
 * git
 * npm
 * yarn
@@ -16,8 +16,7 @@ This program assumes you have the following installed:
 
 ## TODOs
 Things to still get working:
-* build!!!
-* support for tracking other testing frameworks (right now just tracking jest and mocha)
+* support for tracking lab and jasmine 
 * timeout option
 * proper reporting, in json output file
 * scraping for particular characteristics (filter for num deps, num passing tests, no failing tests, etc)
