@@ -13,6 +13,7 @@ VERBOSE_MODE = False
 TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint"]
 IGNORED_COMMANDS = ["watch"]
 TRACKED_BUILD_COMMANDS = ["build", "compile"]
+INCLUDE_DEV_DEPS = False
 
 logging.getLogger('scrapy').propagate = False
 
@@ -45,6 +46,25 @@ def run_installation( pkg_json):
 			manager = "yarn "
 			error, output, retcode = run_command( "yarn")
 	return( (manager, retcode))
+
+def get_dependencies( pkg_json, manager, include_dev_deps):
+	if pkg_json["devDependencies"] and not include_dev_deps:
+		run_command( "rm -r node_modules")
+		run_command( "mv package.json TEMP_package.json_TEMP")
+		dev_deps = pkg_json["devDependencies"]
+		pkg_json["devDependencies"] = {}
+		with open("package.json", 'w') as f:
+			json.dump( pkg_json, f)
+		run_command( manager + (" install" if manager == "npm run " else ""))
+		pkg_json["devDependencies"] = dev_deps
+	deps = os.listdir("node_modules")
+	# then, reset the deps (if required)
+	if pkg_json["devDependencies"] and not include_dev_deps:
+		run_command( "rm -r node_modules")
+		run_command( "mv TEMP_package.json_TEMP package.json")
+		run_command( manager + (" install" if manager == "npm run " else ""))
+	print( deps)
+
 
 def run_build( manager, pkg_json):
 	retcode = 0
@@ -263,7 +283,10 @@ def diagnose_package( repo_link):
 	(manager, retcode) = run_installation( pkg_json)
 	if retcode != 0:
 		print("ERROR -- installation failed")
-		process.exit(0)
+		raise scrapy.CloseSpider("Installation Error")
+
+	print("Getting dependencies (not including devdeps)")
+	get_dependencies( pkg_json, manager, INCLUDE_DEV_DEPS)
 
 	# now, proceed with the build
 	retcode = run_build( manager, pkg_json)
