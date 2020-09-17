@@ -1,0 +1,22 @@
+{
+	"install": {
+		"timeout": 1000
+	},
+	"dependencies": {
+		"track_deps": false,
+		"include_dev_deps": false
+	},
+	"build": {
+		"tracked_build_commands": ["build", "compile"],
+		"timeout": 1000
+	},
+	"test": {
+		"track_tests": true,
+		"tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint"],
+		"timeout": 1000
+	},
+	"meta_info": {
+		"VERBOSE_MODE": false,
+		"ignored_commands": ["watch"]
+	}
+}

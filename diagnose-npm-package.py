@@ -9,13 +9,6 @@ import os
 import logging
 import argparse
 
-VERBOSE_MODE = False
-TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint"]
-IGNORED_COMMANDS = ["watch"]
-TRACKED_BUILD_COMMANDS = ["build", "compile"]
-INCLUDE_DEV_DEPS = False
-COMPUTE_DEP_LISTS = False
-
 logging.getLogger('scrapy').propagate = False
 
 def run_command( command):
@@ -73,10 +66,10 @@ def get_dependencies( pkg_json, manager, include_dev_deps):
 	return( deps)
 
 
-def run_build( manager, pkg_json):
+def run_build( manager, pkg_json, crawler):
 	retcode = 0
-	build_scripts = [b for b in pkg_json["scripts"].keys() if not set([ b.find(b_com) for b_com in TRACKED_BUILD_COMMANDS]) == {-1}]
-	build_scripts = [b for b in build_scripts if set([b.find(ig_com) for ig_com in IGNORED_COMMANDS]) == {-1}]
+	build_scripts = [b for b in pkg_json["scripts"].keys() if not set([ b.find(b_com) for b_com in crawler.TRACKED_BUILD_COMMANDS]) == {-1}]
+	build_scripts = [b for b in build_scripts if set([b.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
 	build_debug = ""
 	build_script_list = []
 	for b in build_scripts:
@@ -89,14 +82,14 @@ def run_build( manager, pkg_json):
 			build_script_list += [b]
 	return( retcode, build_script_list, build_debug)
 
-def run_tests( manager, pkg_json):
-	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in TRACKED_TEST_COMMANDS]) == {-1}]
-	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in IGNORED_COMMANDS]) == {-1}]
+def run_tests( manager, pkg_json, crawler):
+	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in crawler.TRACKED_TEST_COMMANDS]) == {-1}]
+	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
 	test_json_summary = {}
 	for t in test_scripts:
 		print("Running: " + manager + t)
 		error, output, retcode = run_command( manager + t)
-		test_info = TestInfo( (retcode == 0), error, output, manager)
+		test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
 		test_info.set_test_command( pkg_json["scripts"][t])
 		test_info.compute_test_infras()
 		test_info.compute_test_stats()
@@ -197,7 +190,7 @@ class TestInfo:
 		"xx": "xx -- linter",
 		"standard": "standard -- linter"
 	}
-	def __init__(self, success, error_stream, output_stream, manager):
+	def __init__(self, success, error_stream, output_stream, manager, VERBOSE_MODE):
 		self.success = success
 		self.error_stream = error_stream
 		self.output_stream = output_stream
@@ -208,6 +201,7 @@ class TestInfo:
 		self.test_lints = None
 		self.num_passing = None
 		self.num_failing = None
+		self.VERBOSE_MODE = VERBOSE_MODE
 
 	def set_test_command( self, test_command):
 		self.test_command = test_command
@@ -238,7 +232,7 @@ class TestInfo:
 
 	def get_json_rep( self):
 		json_rep = {}
-		if VERBOSE_MODE:
+		if self.VERBOSE_MODE:
 			json_rep["test_debug"] = ""
 		if self.success == "ERROR":
 			json_rep["ERROR"] = True
@@ -248,7 +242,7 @@ class TestInfo:
 			if self.num_passing is not None and self.num_failing is not None:
 				json_rep["num_passing"] = self.num_passing
 				json_rep["num_failing"] = self.num_failing
-		if VERBOSE_MODE:
+		if self.VERBOSE_MODE:
 			json_rep["test_debug"] += "\nOutput stream: " + self.output_stream.decode('utf-8')
 		if self.test_infras and self.test_infras != []:
 			json_rep["test_infras"] = [TestInfo.TRACKED_INFRAS[infra]["name"] for infra in self.test_infras]
@@ -264,13 +258,13 @@ class TestInfo:
 		to_ret = ""
 		if self.success == "ERROR":
 			to_ret += "ERROR"
-			if VERBOSE_MODE:
+			if self.VERBOSE_MODE:
 				to_ret += "\nError output: " + self.error_stream.decode('utf-8')
 		else:
 			to_ret += "SUCCESS"
 			if self.num_passing is not None and self.num_failing is not None:
 				to_ret += "\nPassing tests: " + str(self.num_passing) + "\nFailing tests: " + str(self.num_failing)
-		if VERBOSE_MODE:
+		if self.VERBOSE_MODE:
 			to_ret += "\nOutput stream: " + self.output_stream.decode('utf-8')
 		if self.test_infras and self.test_infras != []:
 			to_ret += "\nTest infras: " + str([TestInfo.TRACKED_INFRAS[infra]["name"] for infra in self.test_infras])
@@ -280,7 +274,7 @@ class TestInfo:
 			to_ret += "\nLinter: " + str(self.test_lints)
 		return( to_ret)
 
-def diagnose_package( repo_link):
+def diagnose_package( repo_link, crawler):
 
 	json_out = {}
 
@@ -308,7 +302,6 @@ def diagnose_package( repo_link):
 	try:
 		with open('package.json') as f:
 			pkg_json = json.load(f)
-		f.close()
 	except:
   		print("ERROR reading the package.json. Exiting now.")
   		process.exit(0)
@@ -317,33 +310,34 @@ def diagnose_package( repo_link):
 	(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json)
 	json_out["installation"] = {}
 	json_out["installation"]["installer_command"] = installer_command
-	if VERBOSE_MODE:
+	if crawler.VERBOSE_MODE:
 		json_out["installation"]["installer_debug"] = installer_debug
 	if retcode != 0:
 		print("ERROR -- installation failed")
 		json_out["installation"]["ERROR"] = True
 		return( json_out)
 
-	if COMPUTE_DEP_LISTS:
+	if crawler.COMPUTE_DEP_LISTS:
 		print("Getting dependencies")
-		dep_list = get_dependencies( pkg_json, manager, INCLUDE_DEV_DEPS)
+		dep_list = get_dependencies( pkg_json, manager, crawler.INCLUDE_DEV_DEPS)
 		json_out["dependencies"] = {}
 		json_out["dependencies"]["dep_list"] = dep_list
-		json_out["dependencies"]["includes_dev_deps"] = INCLUDE_DEV_DEPS
+		json_out["dependencies"]["includes_dev_deps"] = crawler.INCLUDE_DEV_DEPS
 
 	# now, proceed with the build
-	(retcode, build_script_list, build_debug) = run_build( manager, pkg_json)
+	(retcode, build_script_list, build_debug) = run_build( manager, pkg_json, crawler)
 	json_out["build"] = {}
 	json_out["build"]["build_script_list"] = build_script_list
-	if VERBOSE_MODE:
+	if crawler.VERBOSE_MODE:
 		json_out["build"]["build_debug"] = build_debug
 	if retcode != 0:
 		print("ERROR -- build failed. Continuing anyway...")
 		json_out["build"]["ERROR"] = True
 
 	# then, the testing
-	(retcode, test_json_summary) = run_tests( manager, pkg_json)
-	json_out["testing"] = test_json_summary
+	if crawler.TRACK_TESTS:
+		(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler)
+		json_out["testing"] = test_json_summary
 
 	# move back to the original working directory
 	os.chdir( cur_dir)
@@ -351,16 +345,64 @@ def diagnose_package( repo_link):
 	return( json_out)
 
 
-	# exit_code = subprocess.call( [script_name, repo_link, repo_name])
-
 class NPMSpider(scrapy.Spider):
 	name = "npm-pkgs"
+	VERBOSE_MODE = False
+
+	INCLUDE_DEV_DEPS = False
+	COMPUTE_DEP_LISTS = False
+	TRACK_TESTS = True
+
+	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint"]
+	IGNORED_COMMANDS = ["watch"]
+	TRACKED_BUILD_COMMANDS = ["build", "compile"]
+
+	# timeouts for stages, in seconds
+	INSTALL_TIMEOUT = 1000
+	# note: these are timeouts pers *script* in the stage of the process
+	BUILD_TIMEOUT = 1000
+	TEST_TIMEOUT = 1000
 	
-	def __init__(self, packages=None, *args, **kwargs):
+	def __init__(self, packages=None, config_file="", *args, **kwargs):
 		if packages is not None:
 			self.packages = packages
 		self.start_urls = ['https://www.npmjs.com/package/' + pkg for pkg in self.packages]
+		self.set_up_config( config_file)
 		super(NPMSpider, self).__init__(*args, **kwargs)
+
+	def set_up_config( self, config_file):
+		if not os.path.exists(config_file):
+			if config_file != "":
+				print("Could not find config file: " + config_file + " --- using defaults")
+			return
+
+		config_json = {}
+		try:
+			with open( config_file, 'r') as f:
+				config_json = json.loads(f.read())
+		except:
+			print("Error reading config file: " + config_file + " --- using defaults")
+
+		# now, read the relevant config info from the file
+		cf_dict = config_json.get( "meta_info", {})
+		self.VERBOSE_MODE = cf_dict.get("VERBOSE_MODE", self.VERBOSE_MODE)
+		self.IGNORED_COMMANDS = cf_dict.get( "ignored_commands", self.IGNORED_COMMANDS)
+
+		cf_dict = config_json.get( "dependencies", {})
+		self.INCLUDE_DEV_DEPS = cf_dict.get("include_dev_deps", self.INCLUDE_DEV_DEPS)
+		self.COMPUTE_DEP_LISTS = cf_dict.get("track_deps", self.COMPUTE_DEP_LISTS)
+
+		cf_dict = config_json.get( "install", {})
+		self.INSTALL_TIMEOUT = cf_dict.get("timeout", self.INSTALL_TIMEOUT)
+
+		cf_dict = config_json.get( "build", {})
+		self.BUILD_TIMEOUT = cf_dict.get("timeout", self.BUILD_TIMEOUT)
+		self.TRACKED_BUILD_COMMANDS = cf_dict.get("tracked_build_commands", self.TRACKED_BUILD_COMMANDS)
+
+		cf_dict = config_json.get("test", {})
+		self.TEST_TIMEOUT = cf_dict.get("timeout", self.TEST_TIMEOUT)
+		self.TRACKED_TEST_COMMANDS = cf_dict.get("tracked_test_commands", self.TRACKED_TEST_COMMANDS)
+		self.TRACK_TESTS = cf_dict.get("track_tests", self.TRACK_TESTS)
 
 	def parse(self, response):
 		soup = BeautifulSoup(response.body, 'html.parser')
@@ -374,14 +416,17 @@ class NPMSpider(scrapy.Spider):
 		repo_link = data['context']['packument']['repository']
 		package_name = data['context']['packument']['name']
 
-		json_results = diagnose_package( repo_link)
+		json_results = diagnose_package( repo_link, self)
+
+		json_results["metadata"] = {}
+		json_results["metadata"]["package_name"] = package_name
+		json_results["metadata"]["repo_link"] = repo_link
+		json_results["metadata"]["num_dependents"] = num_dependents
 		
 		with open(package_name + '__page_data.html', 'wb') as f:
 			f.write(response.body)
-		f.close()
 		with open(package_name + '__results.json', 'w') as f:
 			json.dump( json_results, f, indent=4)
-		f.close()
 
 
 process = CrawlerProcess(settings={
@@ -396,7 +441,7 @@ argparser.add_argument("--packages", metavar="package", type=str, nargs='+', hel
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
 args = argparser.parse_args()
 
-config = args.config if args.config else {}
+config = args.config if args.config else ""
 
-process.crawl(NPMSpider, packages=args.packages)
+process.crawl(NPMSpider, packages=args.packages, config_file=config)
 process.start() # the script will block here until the crawling is finished
