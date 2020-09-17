@@ -1,4 +1,5 @@
 TESTING_REPOS/*
 items.json
-*.html
+*__page_data.html
+*__results.json
 

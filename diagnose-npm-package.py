@@ -14,6 +14,7 @@ TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint"]
 IGNORED_COMMANDS = ["watch"]
 TRACKED_BUILD_COMMANDS = ["build", "compile"]
 INCLUDE_DEV_DEPS = False
+COMPUTE_DEP_LISTS = False
 
 logging.getLogger('scrapy').propagate = False
 
@@ -23,29 +24,34 @@ def run_command( command):
 	return( error, output, process.returncode)
 
 def run_installation( pkg_json):
+	installation_command = ""
+	installation_debug = "Running Installation\n"
 	manager = ""
 
 	# if there is a yarn lock file use yarn
 	# if there is a package-lock, use npm
 	# if there is neither, try npm first, and if that fails use yarn
 	if os.path.exists( "yarn.lock"):
-		print("yarn detected -- installing using yarn")
+		installation_debug += "\nyarn detected -- installing using yarn"
 		manager = "yarn "
-		error, output, retcode = run_command( "yarn")
+		installation_command = "yarn"
+		error, output, retcode = run_command( installation_command)
 	elif os.path.exists( "package-lock.json"):
-		print("package-lock detected -- installing using npm")
+		installation_debug += "\npackage-lock detected -- installing using npm"
 		manager = "npm run "
-		error, output, retcode = run_command( "npm install")
+		installation_command = "npm install"
+		error, output, retcode = run_command( installation_command)
 	else:
-		print( "No installer detected -- trying npm")
+		installation_debug += "\nNo installer detected -- trying npm"
 		manager = "npm run "
-		error, output, retcode = run_command( "npm install")
+		installation_command = "npm install"
+		error, output, retcode = run_command( installation_command)
 		if retcode != 0:
-			print( "No installer detected -- tried npm, error, now trying yarn")
-			print(error)
+			installation_debug += "No installer detected -- tried npm, error, now trying yarn"
 			manager = "yarn "
-			error, output, retcode = run_command( "yarn")
-	return( (manager, retcode))
+			installation_command = "yarn"
+			error, output, retcode = run_command( installation_command)
+	return( (manager, retcode, installation_command, installation_debug))
 
 def get_dependencies( pkg_json, manager, include_dev_deps):
 	if pkg_json["devDependencies"] and not include_dev_deps:
@@ -57,45 +63,47 @@ def get_dependencies( pkg_json, manager, include_dev_deps):
 			json.dump( pkg_json, f)
 		run_command( manager + (" install" if manager == "npm run " else ""))
 		pkg_json["devDependencies"] = dev_deps
-	deps = os.listdir("node_modules")
+	# get the list of deps, excluding hidden directories
+	deps = [d for d in os.listdir("node_modules") if not d[0] == "."] 
 	# then, reset the deps (if required)
 	if pkg_json["devDependencies"] and not include_dev_deps:
 		run_command( "rm -r node_modules")
 		run_command( "mv TEMP_package.json_TEMP package.json")
 		run_command( manager + (" install" if manager == "npm run " else ""))
-	print( deps)
+	return( deps)
 
 
 def run_build( manager, pkg_json):
 	retcode = 0
 	build_scripts = [b for b in pkg_json["scripts"].keys() if not set([ b.find(b_com) for b_com in TRACKED_BUILD_COMMANDS]) == {-1}]
 	build_scripts = [b for b in build_scripts if set([b.find(ig_com) for ig_com in IGNORED_COMMANDS]) == {-1}]
-	print("Trying build commands: ") 
-	print(build_scripts)
+	build_debug = ""
+	build_script_list = []
 	for b in build_scripts:
-		print("Running: " + manager + b)
+		build_debug += "Running: " + manager + b
 		error, output, retcode = run_command( manager + b)
 		if retcode != 0 and build_scripts.count(b) < 2:
-			print("ERROR running command: " + b)
+			build_debug += "ERROR running command: " + b
 			build_scripts += [b] # re-add it onto the end of the list, and try running it again after the other build commands
-	return( retcode)
+		elif retcode == 0:
+			build_script_list += [b]
+	return( retcode, build_script_list, build_debug)
 
 def run_tests( manager, pkg_json):
 	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in TRACKED_TEST_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in IGNORED_COMMANDS]) == {-1}]
-	print("Trying test commands: ") 
-	print(test_scripts)
-	test_info = {}
+	test_json_summary = {}
 	for t in test_scripts:
 		print("Running: " + manager + t)
 		error, output, retcode = run_command( manager + t)
-		test_info[t] = TestInfo( (retcode == 0), error, output, manager)
-		test_info[t].set_test_command( pkg_json["scripts"][t])
-		test_info[t].compute_test_infras()
-		test_info[t].compute_test_stats()
-		print( test_info[t])
+		test_info = TestInfo( (retcode == 0), error, output, manager)
+		test_info.set_test_command( pkg_json["scripts"][t])
+		test_info.compute_test_infras()
+		test_info.compute_test_stats()
+		# print( test_info[t])
 		# print( get_test_info(error, output))
-	return( retcode, test_info)
+		test_json_summary[t] = test_info.get_json_rep()
+	return( retcode, test_json_summary)
 
 def called_in_command( str_comm, command, manager):
 	if command.find( str_comm) == 0:
@@ -228,6 +236,29 @@ class TestInfo:
 				self.num_passing += sum([test_cond_count( test_output, regex_fct, passing[0], passing[1]) for passing in TestInfo.TRACKED_INFRAS[infra]["passing"]])
 				self.num_failing += sum([test_cond_count( test_output, regex_fct, failing[0], failing[1]) for failing in TestInfo.TRACKED_INFRAS[infra]["failing"]])
 
+	def get_json_rep( self):
+		json_rep = {}
+		if VERBOSE_MODE:
+			json_rep["test_debug"] = ""
+		if self.success == "ERROR":
+			json_rep["ERROR"] = True
+			if VERBOSE_MODE:
+				json_rep["test_debug"] += "\nError output: " + self.error_stream.decode('utf-8')
+		else:
+			if self.num_passing is not None and self.num_failing is not None:
+				json_rep["num_passing"] = self.num_passing
+				json_rep["num_failing"] = self.num_failing
+		if VERBOSE_MODE:
+			json_rep["test_debug"] += "\nOutput stream: " + self.output_stream.decode('utf-8')
+		if self.test_infras and self.test_infras != []:
+			json_rep["test_infras"] = [TestInfo.TRACKED_INFRAS[infra]["name"] for infra in self.test_infras]
+		if self.test_covs and self.test_covs != []:
+			json_rep["test_coverage_tools"] = self.test_covs
+		if self.test_lints and self.test_lints != []:
+			json_rep["test_linters"] = self.test_lints
+		if "test_infras" not in json_rep:
+			json_rep["RUNS_USER_TESTS"] = False
+		return( json_rep)
 
 	def __str__(self):
 		to_ret = ""
@@ -250,6 +281,9 @@ class TestInfo:
 		return( to_ret)
 
 def diagnose_package( repo_link):
+
+	json_out = {}
+
 	repo_name = repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
 	cur_dir = os.getcwd()
 
@@ -280,26 +314,41 @@ def diagnose_package( repo_link):
   		process.exit(0)
 
 	# first, the install
-	(manager, retcode) = run_installation( pkg_json)
+	(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json)
+	json_out["installation"] = {}
+	json_out["installation"]["installer_command"] = installer_command
+	if VERBOSE_MODE:
+		json_out["installation"]["installer_debug"] = installer_debug
 	if retcode != 0:
 		print("ERROR -- installation failed")
-		raise scrapy.CloseSpider("Installation Error")
+		json_out["installation"]["ERROR"] = True
+		return( json_out)
 
-	print("Getting dependencies (not including devdeps)")
-	get_dependencies( pkg_json, manager, INCLUDE_DEV_DEPS)
+	if COMPUTE_DEP_LISTS:
+		print("Getting dependencies")
+		dep_list = get_dependencies( pkg_json, manager, INCLUDE_DEV_DEPS)
+		json_out["dependencies"] = {}
+		json_out["dependencies"]["dep_list"] = dep_list
+		json_out["dependencies"]["includes_dev_deps"] = INCLUDE_DEV_DEPS
 
 	# now, proceed with the build
-	retcode = run_build( manager, pkg_json)
+	(retcode, build_script_list, build_debug) = run_build( manager, pkg_json)
+	json_out["build"] = {}
+	json_out["build"]["build_script_list"] = build_script_list
+	if VERBOSE_MODE:
+		json_out["build"]["build_debug"] = build_debug
 	if retcode != 0:
-		print("ERROR -- build failed")
-		print("Continuing anyway...")
+		print("ERROR -- build failed. Continuing anyway...")
+		json_out["build"]["ERROR"] = True
 
 	# then, the testing
-	(retcode, test_info) = run_tests( manager, pkg_json)
-
+	(retcode, test_json_summary) = run_tests( manager, pkg_json)
+	json_out["testing"] = test_json_summary
 
 	# move back to the original working directory
 	os.chdir( cur_dir)
+
+	return( json_out)
 
 
 	# exit_code = subprocess.call( [script_name, repo_link, repo_name])
@@ -323,12 +372,15 @@ class NPMSpider(scrapy.Spider):
 		
 		num_dependents = data['context']['dependents']['dependentsCount']
 		repo_link = data['context']['packument']['repository']
+		package_name = data['context']['packument']['name']
 
-		diagnose_package( repo_link)
+		json_results = diagnose_package( repo_link)
 		
-		filename = 'test.html'
-		with open(filename, 'wb') as f:
+		with open(package_name + '__page_data.html', 'wb') as f:
 			f.write(response.body)
+		f.close()
+		with open(package_name + '__results.json', 'w') as f:
+			json.dump( json_results, f, indent=4)
 		f.close()
 
 
