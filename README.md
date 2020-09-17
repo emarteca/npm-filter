@@ -18,6 +18,4 @@ This program assumes you have the following installed:
 Things to still get working:
 * support for tracking lab and jasmine 
 * timeout option
-* proper reporting, in json output file
 * scraping for particular characteristics (filter for num deps, num passing tests, no failing tests, etc)
-* config file support
