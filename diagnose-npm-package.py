@@ -111,11 +111,19 @@ def called_in_command( str_comm, command, manager):
 	return( False)
 
 def test_cond_count( test_output, regex_fct, condition, offset):
-	results = re.findall( regex_fct(condition), test_output)
+	ptrn = re.compile( regex_fct(condition), re.MULTILINE)
+	results = ptrn.findall( test_output)
+	print(condition)
+	print(results)
+	if offset is None:
+		return( len( results)) # just count the number of hits, each hit is an individual test (example: tap "ok" vs "not ok")
 	num_cond = 0
 	for r in results:
 		temp = r.split()
-		num_cond += int( temp[temp.index(condition) + offset])  
+		try:
+			num_cond += int( temp[temp.index(condition) + offset])  
+		except ValueError:
+			num_cond += 0
 	return( num_cond)
 
 
@@ -123,64 +131,86 @@ class TestInfo:
 	TRACKED_INFRAS = {
 		"mocha": {
 			"name": "mocha", 
-			"output_regex_fct": [
-				lambda condition: r'.*\d+ ' + condition + '.*'
-			], 
-			"passing": [ ("passing", -1)], 
-			"failing": [ ("failing", -1)]
+			"output_checkers": [
+				{
+					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
+					"passing": ("passing", -1),
+					"failing": ("failing", -1)
+				}
+			]
 		},
 		"jest": {
 			"name": "jest", 
-			"output_regex_fct": [
-				lambda condition: r'Tests:.*\d+ ' + condition
-			], 
-			"passing": [ ("passed", -1)], 
-			"failing": [ ("failed", -1)]
+			"output_checkers": [
+				{
+					"output_regex_fct" : lambda condition: r'Tests:.*\d+ ' + condition,
+					"passing": ("passed", -1),
+					"failing": ("failed", -1)
+				}
+			]
 		},
 		"jasmine": {
 			"name": "jasmine", 
-			"output_regex_fct": [], 
-			"passing": [], 
-			"failing": []
+			"output_checkers": []
 		},
 		"tap": {
 			"name": "tap", 
-			"output_regex_fct": [
-				lambda condition: r'# ' + condition + '.*\d+'
-			], 
-			"passing": [ ("pass", 1)], 
-			"failing": [ ("fail", 1)]
+			"output_checkers": [
+				{
+					"output_regex_fct" : lambda condition: r'# ' + condition + '.*\d+',
+					"passing": ("pass", 1),
+					"failing": ("fail", 1)
+				},
+				{
+					"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
+					"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
+					"failing":  ("not ok", None)
+				}
+			]
 		},
 		"lab": {
 			"name": "lab", 
-			"output_regex_fct": [], 
-			"passing": [], 
-			"failing": []
+			"output_checkers": []
 		},
 		"ava": {
 			"name": "ava", 
-			"output_regex_fct": [
-				lambda condition: r'.*\d+ tests? ' + condition
-			], 
-			"passing": [ ("passed", -2)], 
-			"failing": [ ("failed", -2)]
+			"output_checkers": [
+				{
+					"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
+					"passing": ("passed", -2), 
+					"failing": ("failed", -2)
+				}
+			]
 		},
 		"node": {
 			"name": "CUSTOM INFRA: node", 
-			"output_regex_fct": [
-				lambda condition: r'.*\d+ ' + condition + '.*', 	# mocha
-				lambda condition: r'Tests:.*\d+ ' + condition, 		# jest
-				lambda condition: r'# ' + condition + '.*d+',		# tap
-				lambda condition: r'.*\d+ tests? ' + condition		# ava
-			], 
-			"passing": [ ("passing", -1), 
-						 ("passed", -1),
-						 ("pass", 1),
-						 ("passed", -2),], 
-			"failing": [ ("failing", -1), 
-						 ("failed", -1),
-						 ("fail", 1),
-						 ("failed", -2),]
+			"output_checkers": [
+				{ # mocha
+					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
+					"passing": ("passing", -1),
+					"failing": ("failing", -1)
+				},
+				{ # jest
+					"output_regex_fct" : lambda condition: r'Tests:.*\d+ ' + condition,
+					"passing": ("passed", -1),
+					"failing": ("failed", -1)
+				}, 
+				{ # tap
+					"output_regex_fct" : lambda condition: r'# ' + condition + '.*\d+',
+					"passing": ("pass", 1),
+					"failing": ("fail", 1)
+				},
+				{ # also tap
+					"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
+					"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
+					"failing":  ("not ok", None)
+				}
+				{ # ava
+					"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
+					"passing": ("passed", -2), 
+					"failing": ("failed", -2)
+				}
+			]
 		},
 	}
 	TRACKED_COVERAGE = {
@@ -233,9 +263,9 @@ class TestInfo:
 		self.num_failing = 0
 		self.timed_out = (self.error_stream.decode('utf-8') == "TIMEOUT ERROR")
 		for infra in self.test_infras:
-			for regex_fct in TestInfo.TRACKED_INFRAS[infra]["output_regex_fct"]:
-				self.num_passing += sum([test_cond_count( test_output, regex_fct, passing[0], passing[1]) for passing in TestInfo.TRACKED_INFRAS[infra]["passing"]])
-				self.num_failing += sum([test_cond_count( test_output, regex_fct, failing[0], failing[1]) for failing in TestInfo.TRACKED_INFRAS[infra]["failing"]])
+			for checker in TestInfo.TRACKED_INFRAS[infra]["output_checkers"]:
+				self.num_passing += test_cond_count( test_output, checker["output_regex_fct"], checker["passing"][0], checker["passing"][1])
+				self.num_failing += test_cond_count( test_output, checker["output_regex_fct"], checker["failing"][0], checker["failing"][1])
 
 	def get_json_rep( self):
 		json_rep = {}
