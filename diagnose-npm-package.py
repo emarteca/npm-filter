@@ -12,9 +12,8 @@ import argparse
 logging.getLogger('scrapy').propagate = False
 
 def run_command( command):
-	process = subprocess.Popen( command.split(), stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-	output, error = process.communicate()
-	return( error, output, process.returncode)
+	process = subprocess.run( command.split(), stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+	return( process.stderr, process.stdout, process.returncode)
 
 def run_installation( pkg_json):
 	installation_command = ""
