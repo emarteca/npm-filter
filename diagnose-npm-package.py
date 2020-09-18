@@ -11,11 +11,16 @@ import argparse
 
 logging.getLogger('scrapy').propagate = False
 
-def run_command( command):
-	process = subprocess.run( command.split(), stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+def run_command( command, timeout=None):
+	try:
+		process = subprocess.run( command.split(), stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+	except subprocess.TimeoutExpired:
+		error_string = "TIMEOUT ERROR: for user-specified timeout " + str(timeout) + " seconds"
+		error = "TIMEOUT ERROR"
+		return( error.encode('utf-8'), error_string.encode('utf-8'), 1) # non-zero return code
 	return( process.stderr, process.stdout, process.returncode)
 
-def run_installation( pkg_json):
+def run_installation( pkg_json, crawler):
 	installation_command = ""
 	installation_debug = "Running Installation\n"
 	manager = ""
@@ -27,24 +32,25 @@ def run_installation( pkg_json):
 		installation_debug += "\nyarn detected -- installing using yarn"
 		manager = "yarn "
 		installation_command = "yarn"
-		error, output, retcode = run_command( installation_command)
+		error, output, retcode = run_command( installation_command, crawler.INSTALL_TIMEOUT)
 	elif os.path.exists( "package-lock.json"):
 		installation_debug += "\npackage-lock detected -- installing using npm"
 		manager = "npm run "
 		installation_command = "npm install"
-		error, output, retcode = run_command( installation_command)
+		error, output, retcode = run_command( installation_command, crawler.INSTALL_TIMEOUT)
 	else:
 		installation_debug += "\nNo installer detected -- trying npm"
 		manager = "npm run "
 		installation_command = "npm install"
-		error, output, retcode = run_command( installation_command)
+		error, output, retcode = run_command( installation_command, crawler.INSTALL_TIMEOUT)
 		if retcode != 0:
 			installation_debug += "No installer detected -- tried npm, error, now trying yarn"
 			manager = "yarn "
 			installation_command = "yarn"
-			error, output, retcode = run_command( installation_command)
+			error, output, retcode = run_command( installation_command, crawler.INSTALL_TIMEOUT)
 	return( (manager, retcode, installation_command, installation_debug))
 
+# note: no timeout option for get_dependencies, so "None" is passed as a default timeout argument to run_command
 def get_dependencies( pkg_json, manager, include_dev_deps):
 	if pkg_json["devDependencies"] and not include_dev_deps:
 		run_command( "rm -r node_modules")
@@ -73,7 +79,7 @@ def run_build( manager, pkg_json, crawler):
 	build_script_list = []
 	for b in build_scripts:
 		build_debug += "Running: " + manager + b
-		error, output, retcode = run_command( manager + b)
+		error, output, retcode = run_command( manager + b, crawler.BUILD_TIMEOUT)
 		if retcode != 0 and build_scripts.count(b) < 2:
 			build_debug += "ERROR running command: " + b
 			build_scripts += [b] # re-add it onto the end of the list, and try running it again after the other build commands
@@ -87,7 +93,7 @@ def run_tests( manager, pkg_json, crawler):
 	test_json_summary = {}
 	for t in test_scripts:
 		print("Running: " + manager + t)
-		error, output, retcode = run_command( manager + t)
+		error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
 		test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
 		test_info.set_test_command( pkg_json["scripts"][t])
 		test_info.compute_test_infras()
@@ -200,6 +206,7 @@ class TestInfo:
 		self.test_lints = None
 		self.num_passing = None
 		self.num_failing = None
+		self.timed_out = False
 		self.VERBOSE_MODE = VERBOSE_MODE
 
 	def set_test_command( self, test_command):
@@ -224,6 +231,7 @@ class TestInfo:
 		test_output = self.output_stream.decode('utf-8') + self.error_stream.decode('utf-8')
 		self.num_passing = 0
 		self.num_failing = 0
+		self.timed_out = (self.error_stream.decode('utf-8') == "TIMEOUT ERROR")
 		for infra in self.test_infras:
 			for regex_fct in TestInfo.TRACKED_INFRAS[infra]["output_regex_fct"]:
 				self.num_passing += sum([test_cond_count( test_output, regex_fct, passing[0], passing[1]) for passing in TestInfo.TRACKED_INFRAS[infra]["passing"]])
@@ -251,6 +259,7 @@ class TestInfo:
 			json_rep["test_linters"] = self.test_lints
 		if "test_infras" not in json_rep:
 			json_rep["RUNS_USER_TESTS"] = False
+		json_rep["timed_out"] = self.timed_out
 		return( json_rep)
 
 	def __str__(self):
@@ -271,6 +280,7 @@ class TestInfo:
 			to_ret += "\nCoverage testing: " + str(self.test_covs)
 		if self.test_lints and self.test_lints != []:
 			to_ret += "\nLinter: " + str(self.test_lints)
+		to_ret += "\nTimed out: " + str(self.timed_out)
 		return( to_ret)
 
 def diagnose_package( repo_link, crawler):
@@ -306,7 +316,7 @@ def diagnose_package( repo_link, crawler):
   		process.exit(0)
 
 	# first, the install
-	(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json)
+	(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
 	json_out["installation"] = {}
 	json_out["installation"]["installer_command"] = installer_command
 	if crawler.VERBOSE_MODE:
