@@ -113,8 +113,6 @@ def called_in_command( str_comm, command, manager):
 def test_cond_count( test_output, regex_fct, condition, offset):
 	ptrn = re.compile( regex_fct(condition), re.MULTILINE)
 	results = ptrn.findall( test_output)
-	print(condition)
-	print(results)
 	if offset is None:
 		return( len( results)) # just count the number of hits, each hit is an individual test (example: tap "ok" vs "not ok")
 	num_cond = 0
@@ -204,7 +202,7 @@ class TestInfo:
 					"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
 					"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
 					"failing":  ("not ok", None)
-				}
+				},
 				{ # ava
 					"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
 					"passing": ("passed", -2), 
