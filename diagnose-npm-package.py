@@ -379,12 +379,16 @@ def diagnose_package( repo_link, crawler):
 	# move back to the original working directory
 	os.chdir( cur_dir)
 
+	if crawler.RM_AFTER_CLONING:
+		run_command( "rm -rf " + repo_name)
+
 	return( json_out)
 
 
 class NPMSpider(scrapy.Spider):
 	name = "npm-pkgs"
 	VERBOSE_MODE = False
+	RM_AFTER_CLONING = False
 
 	INCLUDE_DEV_DEPS = False
 	COMPUTE_DEP_LISTS = False
@@ -424,6 +428,7 @@ class NPMSpider(scrapy.Spider):
 		cf_dict = config_json.get( "meta_info", {})
 		self.VERBOSE_MODE = cf_dict.get("VERBOSE_MODE", self.VERBOSE_MODE)
 		self.IGNORED_COMMANDS = cf_dict.get( "ignored_commands", self.IGNORED_COMMANDS)
+		self.RM_AFTER_CLONING = cf_dict.get( "rm_after_cloning", self.RM_AFTER_CLONING)
 
 		cf_dict = config_json.get( "dependencies", {})
 		self.INCLUDE_DEV_DEPS = cf_dict.get("include_dev_deps", self.INCLUDE_DEV_DEPS)

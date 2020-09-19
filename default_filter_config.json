@@ -17,6 +17,7 @@
 	},
 	"meta_info": {
 		"VERBOSE_MODE": false,
-		"ignored_commands": ["watch"]
+		"ignored_commands": ["watch"],
+		"rm_after_cloning": false
 	}
 }
