@@ -380,7 +380,7 @@ def diagnose_package( repo_link, crawler):
 	os.chdir( cur_dir)
 
 	if crawler.RM_AFTER_CLONING:
-		run_command( "rm -rf " + repo_name)
+		run_command( "rm -rf TESTING_REPOS/" + repo_name)
 
 	return( json_out)
 
