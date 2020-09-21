@@ -110,6 +110,10 @@ def called_in_command( str_comm, command, manager):
 		return( True)
 	if command.find( "cross-env NODE_ENV=test " + str_comm) > -1 or command.find( "cross-env NODE_ENV=production " + str_comm) > -1:
 		return( True)
+	if command.find( "cross-env CI=true " + str_comm) > -1:
+		return( True)
+	if command.find( "opener " + str_comm) > -1:
+		return( True)
 	return( False)
 
 def test_cond_count( test_output, regex_fct, condition, offset):
@@ -151,7 +155,13 @@ class TestInfo:
 		},
 		"jasmine": {
 			"name": "jasmine", 
-			"output_checkers": []
+			"output_checkers": [
+				{
+					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
+					"passing": ("passing", -1),
+					"failing": ("failing", -1)
+				}
+			]
 		},
 		"tap": {
 			"name": "tap", 
@@ -182,36 +192,6 @@ class TestInfo:
 				}
 			]
 		},
-		"node": {
-			"name": "CUSTOM INFRA: node", 
-			"output_checkers": [
-				{ # mocha
-					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
-					"passing": ("passing", -1),
-					"failing": ("failing", -1)
-				},
-				{ # jest
-					"output_regex_fct" : lambda condition: r'Tests:.*\d+ ' + condition,
-					"passing": ("passed", -1),
-					"failing": ("failed", -1)
-				}, 
-				{ # tap
-					"output_regex_fct" : lambda condition: r'# ' + condition + '.*\d+',
-					"passing": ("pass", 1),
-					"failing": ("fail", 1)
-				},
-				{ # also tap
-					"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
-					"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
-					"failing":  ("not ok", None)
-				},
-				{ # ava
-					"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
-					"passing": ("passed", -2), 
-					"failing": ("failed", -2)
-				}
-			]
-		},
 	}
 	TRACKED_COVERAGE = {
 		"istanbul": "istanbul -- coverage testing",
@@ -226,6 +206,9 @@ class TestInfo:
 		"standard": "standard -- linter",
 		"prettier": "prettier -- linter"
 	}
+
+	TRACKED_RUNNERS = [ "node", "babel-node"]
+
 	def __init__(self, success, error_stream, output_stream, manager, VERBOSE_MODE):
 		self.success = success
 		self.error_stream = error_stream
@@ -249,6 +232,7 @@ class TestInfo:
 		self.test_lints = []
 		if self.test_command:
 			self.test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.manager) ]
+			self.test_infras += [ ri for ri in TestInfo.TRACKED_RUNNERS if called_in_command(ri, self.test_command, self.manager) ]
 			self.test_covs += [ TestInfo.TRACKED_COVERAGE[ti] for ti in TestInfo.TRACKED_COVERAGE if called_in_command(ti, self.test_command, self.manager) ]
 			self.test_lints += [ TestInfo.TRACKED_LINTERS[ti] for ti in TestInfo.TRACKED_LINTERS if called_in_command(ti, self.test_command, self.manager) ]
 		self.test_infras = list(set(self.test_infras))
@@ -264,7 +248,10 @@ class TestInfo:
 		self.num_failing = 0
 		self.timed_out = (self.error_stream.decode('utf-8') == "TIMEOUT ERROR")
 		for infra in self.test_infras:
-			for checker in TestInfo.TRACKED_INFRAS[infra]["output_checkers"]:
+			output_checkers = TestInfo.TRACKED_INFRAS.get(infra, {}).get("output_checkers", [])
+			if infra in TestInfo.TRACKED_RUNNERS and output_checkers == []:
+				output_checkers = [ c for tracked_i in TestInfo.TRACKED_INFRAS for c in TestInfo.TRACKED_INFRAS[tracked_i]["output_checkers"]]
+			for checker in output_checkers:
 				self.num_passing += test_cond_count( test_output, checker["output_regex_fct"], checker["passing"][0], checker["passing"][1])
 				self.num_failing += test_cond_count( test_output, checker["output_regex_fct"], checker["failing"][0], checker["failing"][1])
 
@@ -283,7 +270,7 @@ class TestInfo:
 		if self.VERBOSE_MODE:
 			json_rep["test_debug"] += "\nOutput stream: " + self.output_stream.decode('utf-8')
 		if self.test_infras and self.test_infras != []:
-			json_rep["test_infras"] = [TestInfo.TRACKED_INFRAS[infra]["name"] for infra in self.test_infras]
+			json_rep["test_infras"] = [TestInfo.TRACKED_INFRAS.get(infra, {}).get("name", "Custom Testing: " + infra) for infra in self.test_infras]
 		if self.test_covs and self.test_covs != []:
 			json_rep["test_coverage_tools"] = self.test_covs
 		if self.test_lints and self.test_lints != []:
