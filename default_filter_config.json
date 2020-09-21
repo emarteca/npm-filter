@@ -12,7 +12,7 @@
 	},
 	"test": {
 		"track_tests": true,
-		"tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint"],
+		"tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis"],
 		"timeout": 1000
 	},
 	"meta_info": {

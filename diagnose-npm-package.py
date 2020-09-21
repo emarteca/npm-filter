@@ -108,6 +108,8 @@ def called_in_command( str_comm, command, manager):
 		return( True)
 	if command.find( "&&" + str_comm) > -1 or command.find( "&& " + str_comm) > -1:
 		return( True)
+	if command.find( "cross-env NODE_ENV=test " + str_comm) > -1 or command.find( "cross-env NODE_ENV=production " + str_comm) > -1:
+		return( True)
 	return( False)
 
 def test_cond_count( test_output, regex_fct, condition, offset):
@@ -221,7 +223,8 @@ class TestInfo:
 		"eslint": "eslint -- linter",
 		"tslint": "tslint -- linter",
 		"xx": "xx -- linter",
-		"standard": "standard -- linter"
+		"standard": "standard -- linter",
+		"prettier": "prettier -- linter"
 	}
 	def __init__(self, success, error_stream, output_stream, manager, VERBOSE_MODE):
 		self.success = success
