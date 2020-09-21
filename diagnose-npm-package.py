@@ -115,6 +115,8 @@ def called_in_command( str_comm, command, manager):
 		return( True)
 	if command.find( "opener " + str_comm) > -1:
 		return( True)
+	if command.find( "gulp " + str_comm) > -1:
+		return( True)
 	return( False)
 
 def test_cond_count( test_output, regex_fct, condition, offset):
@@ -193,6 +195,16 @@ class TestInfo:
 				}
 			]
 		},
+		"gulp": {
+			"name": "gulp", 
+			"output_checkers": [
+				{
+					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
+					"passing": ("passing", -1),
+					"failing": ("failing", -1)
+				}
+			]
+		},
 	}
 	TRACKED_COVERAGE = {
 		"istanbul": "istanbul -- coverage testing",
@@ -205,10 +217,11 @@ class TestInfo:
 		"tslint": "tslint -- linter",
 		"xx": "xx -- linter",
 		"standard": "standard -- linter",
-		"prettier": "prettier -- linter"
+		"prettier": "prettier -- linter",
+		"gulp lint": "gulp lint -- linter"
 	}
 
-	TRACKED_RUNNERS = [ "node", "babel-node"]
+	TRACKED_RUNNERS = [ "node", "babel-node" ]
 
 	def __init__(self, success, error_stream, output_stream, manager, VERBOSE_MODE):
 		self.success = success
@@ -268,14 +281,13 @@ class TestInfo:
 		json_rep = {}
 		if self.VERBOSE_MODE:
 			json_rep["test_debug"] = ""
-		if self.success == "ERROR":
+		if not self.success:
 			json_rep["ERROR"] = True
-			if VERBOSE_MODE:
+			if self.VERBOSE_MODE:
 				json_rep["test_debug"] += "\nError output: " + self.error_stream.decode('utf-8')
-		else:
-			if self.num_passing is not None and self.num_failing is not None:
-				json_rep["num_passing"] = self.num_passing
-				json_rep["num_failing"] = self.num_failing
+		if self.num_passing is not None and self.num_failing is not None:
+			json_rep["num_passing"] = self.num_passing
+			json_rep["num_failing"] = self.num_failing
 		if self.VERBOSE_MODE:
 			json_rep["test_debug"] += "\nOutput stream: " + self.output_stream.decode('utf-8')
 		if self.test_infras and self.test_infras != []:
@@ -293,14 +305,14 @@ class TestInfo:
 
 	def __str__(self):
 		to_ret = ""
-		if self.success == "ERROR":
+		if not self.success:
 			to_ret += "ERROR"
 			if self.VERBOSE_MODE:
 				to_ret += "\nError output: " + self.error_stream.decode('utf-8')
 		else:
 			to_ret += "SUCCESS"
-			if self.num_passing is not None and self.num_failing is not None:
-				to_ret += "\nPassing tests: " + str(self.num_passing) + "\nFailing tests: " + str(self.num_failing)
+		if self.num_passing is not None and self.num_failing is not None:
+			to_ret += "\nPassing tests: " + str(self.num_passing) + "\nFailing tests: " + str(self.num_failing)
 		if self.VERBOSE_MODE:
 			to_ret += "\nOutput stream: " + self.output_stream.decode('utf-8')
 		if self.test_infras and self.test_infras != []:
@@ -398,7 +410,8 @@ class NPMSpider(scrapy.Spider):
 	COMPUTE_DEP_LISTS = False
 	TRACK_TESTS = True
 
-	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis"]
+	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", 
+							 "mocha", "jest", "ava", "tap", "jasmine"]
 	IGNORED_COMMANDS = ["watch"]
 	TRACKED_BUILD_COMMANDS = ["build", "compile"]
 

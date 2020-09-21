@@ -12,7 +12,8 @@
 	},
 	"test": {
 		"track_tests": true,
-		"tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis"],
+		"tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", 
+								  "mocha", "jest", "ava", "tap", "jasmine"],
 		"timeout": 1000
 	},
 	"meta_info": {
