@@ -97,6 +97,7 @@ def run_tests( manager, pkg_json, crawler):
 		test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
 		test_info.set_test_command( pkg_json["scripts"][t])
 		test_info.compute_test_infras()
+		test_info.compute_nested_test_commands( test_scripts)
 		test_info.compute_test_stats()
 		# print( test_info[t])
 		# print( get_test_info(error, output))
@@ -218,6 +219,7 @@ class TestInfo:
 		self.test_infras = None
 		self.test_covs = None
 		self.test_lints = None
+		self.nested_test_commands = None
 		self.num_passing = None
 		self.num_failing = None
 		self.timed_out = False
@@ -230,6 +232,7 @@ class TestInfo:
 		self.test_infras = []
 		self.test_covs = []
 		self.test_lints = []
+		self.nested_test_commands = []
 		if self.test_command:
 			self.test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.manager) ]
 			self.test_infras += [ ri for ri in TestInfo.TRACKED_RUNNERS if called_in_command(ri, self.test_command, self.manager) ]
@@ -239,6 +242,12 @@ class TestInfo:
 		self.test_covs = list(set(self.test_covs))
 		self.test_lints = list(set(self.test_lints))
 		# TODO: maybe we can also figure it out from the output stream
+
+	def compute_nested_test_commands( self, test_commands):
+		# one might think that we should only check the package's own manager
+		# however, it's common to mix and match (esp. to run commands with "npm run" even if the package manager is yarn)
+		self.nested_test_commands += [ tc for tc in test_commands if called_in_command( "npm run " + tc, self.test_command, self.manager) ]
+		self.nested_test_commands += [ tc for tc in test_commands if called_in_command( "yarn " + tc, self.test_command, self.manager) ]
 
 	def compute_test_stats( self):
 		if not self.test_infras or self.test_infras == []:
@@ -275,8 +284,10 @@ class TestInfo:
 			json_rep["test_coverage_tools"] = self.test_covs
 		if self.test_lints and self.test_lints != []:
 			json_rep["test_linters"] = self.test_lints
+		if self.nested_test_commands and self.nested_test_commands != []:
+			json_rep["nested_test_commands"] = self.nested_test_commands
 		if "test_infras" not in json_rep:
-			json_rep["RUNS_USER_TESTS"] = False
+			json_rep["RUNS_NEW_USER_TESTS"] = False
 		json_rep["timed_out"] = self.timed_out
 		return( json_rep)
 
@@ -298,6 +309,8 @@ class TestInfo:
 			to_ret += "\nCoverage testing: " + str(self.test_covs)
 		if self.test_lints and self.test_lints != []:
 			to_ret += "\nLinter: " + str(self.test_lints)
+		if self.nested_test_commands and self.nested_test_commands != []:
+			to_ret += "\nNested test commands: " + str(self.nested_test_commands)
 		to_ret += "\nTimed out: " + str(self.timed_out)
 		return( to_ret)
 
@@ -385,7 +398,7 @@ class NPMSpider(scrapy.Spider):
 	COMPUTE_DEP_LISTS = False
 	TRACK_TESTS = True
 
-	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint"]
+	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis"]
 	IGNORED_COMMANDS = ["watch"]
 	TRACKED_BUILD_COMMANDS = ["build", "compile"]
 
