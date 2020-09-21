@@ -174,7 +174,7 @@ class TestInfo:
 				{
 					"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
 					"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
-					"failing":  ("not ok", None)
+					"failing":  (r'^.*not ok', None)
 				}
 			]
 		},
