@@ -342,6 +342,7 @@ def diagnose_package( repo_link, crawler):
 	if retcode != 0:
 		print("ERROR -- installation failed")
 		json_out["installation"]["ERROR"] = True
+		os.chdir( cur_dir)
 		return( json_out)
 
 	if crawler.COMPUTE_DEP_LISTS:
