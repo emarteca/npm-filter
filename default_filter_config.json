@@ -7,7 +7,7 @@
 		"include_dev_deps": false
 	},
 	"build": {
-		"tracked_build_commands": ["build", "compile"],
+		"tracked_build_commands": ["build", "compile", "init"],
 		"timeout": 1000
 	},
 	"test": {

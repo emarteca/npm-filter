@@ -135,51 +135,52 @@ def test_cond_count( test_output, regex_fct, condition, offset):
 
 
 class TestInfo:
+	OUTPUT_CHECKERS = {
+		"mocha": 
+			{
+				"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
+				"passing": ("passing", -1),
+				"failing": ("failing", -1)
+			},
+		"jest": 
+			{
+				"output_regex_fct" : lambda condition: r'Tests:.*\d+ ' + condition,
+				"passing": ("passed", -1),
+				"failing": ("failed", -1)
+			},
+		"tap": {
+				"output_regex_fct" : lambda condition: r'# ' + condition + '.*\d+',
+				"passing": ("pass", 1),
+				"failing": ("fail", 1)
+			},
+		"tap_raw": {
+				"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
+				"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
+				"failing":  (r'^.*not ok', None)
+			},
+		"ava": 
+		{
+			"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
+			"passing": ("passed", -2), 
+			"failing": ("failed", -2)
+		}
+	}
 	TRACKED_INFRAS = {
 		"mocha": {
 			"name": "mocha", 
-			"output_checkers": [
-				{
-					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
-					"passing": ("passing", -1),
-					"failing": ("failing", -1)
-				}
-			]
+			"output_checkers": [ "mocha", "tap" ]
 		},
 		"jest": {
 			"name": "jest", 
-			"output_checkers": [
-				{
-					"output_regex_fct" : lambda condition: r'Tests:.*\d+ ' + condition,
-					"passing": ("passed", -1),
-					"failing": ("failed", -1)
-				}
-			]
+			"output_checkers": [ "jest" ]
 		},
 		"jasmine": {
 			"name": "jasmine", 
-			"output_checkers": [
-				{
-					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
-					"passing": ("passing", -1),
-					"failing": ("failing", -1)
-				}
-			]
+			"output_checkers": [ "mocha" ]
 		},
 		"tap": {
 			"name": "tap", 
-			"output_checkers": [
-				{
-					"output_regex_fct" : lambda condition: r'# ' + condition + '.*\d+',
-					"passing": ("pass", 1),
-					"failing": ("fail", 1)
-				},
-				{
-					"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
-					"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
-					"failing":  (r'^.*not ok', None)
-				}
-			]
+			"output_checkers": [ "tap", "tap_raw" ]
 		},
 		"lab": {
 			"name": "lab", 
@@ -187,23 +188,11 @@ class TestInfo:
 		},
 		"ava": {
 			"name": "ava", 
-			"output_checkers": [
-				{
-					"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
-					"passing": ("passed", -2), 
-					"failing": ("failed", -2)
-				}
-			]
+			"output_checkers": [ "ava" ]
 		},
 		"gulp": {
 			"name": "gulp", 
-			"output_checkers": [
-				{
-					"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
-					"passing": ("passing", -1),
-					"failing": ("failing", -1)
-				}
-			]
+			"output_checkers": [ "mocha" ]
 		},
 	}
 	TRACKED_COVERAGE = {
@@ -221,7 +210,7 @@ class TestInfo:
 		"gulp lint": "gulp lint -- linter"
 	}
 
-	TRACKED_RUNNERS = [ "node", "babel-node" ]
+	TRACKED_RUNNERS = [ "node", "babel-node", "grunt" ]
 
 	def __init__(self, success, error_stream, output_stream, manager, VERBOSE_MODE):
 		self.success = success
@@ -270,10 +259,11 @@ class TestInfo:
 		self.num_failing = 0
 		self.timed_out = (self.error_stream.decode('utf-8') == "TIMEOUT ERROR")
 		for infra in self.test_infras:
-			output_checkers = TestInfo.TRACKED_INFRAS.get(infra, {}).get("output_checkers", [])
-			if infra in TestInfo.TRACKED_RUNNERS and output_checkers == []:
-				output_checkers = [ c for tracked_i in TestInfo.TRACKED_INFRAS for c in TestInfo.TRACKED_INFRAS[tracked_i]["output_checkers"]]
-			for checker in output_checkers:
+			output_checker_names = TestInfo.TRACKED_INFRAS.get(infra, {}).get("output_checkers", [])
+			if infra in TestInfo.TRACKED_RUNNERS and output_checker_names == []:
+				output_checker_names = self.OUTPUT_CHECKERS.keys() # all the checkers
+			for checker_name in output_checker_names:
+				checker = self.OUTPUT_CHECKERS[ checker_name]
 				self.num_passing += test_cond_count( test_output, checker["output_regex_fct"], checker["passing"][0], checker["passing"][1])
 				self.num_failing += test_cond_count( test_output, checker["output_regex_fct"], checker["failing"][0], checker["failing"][1])
 
@@ -413,7 +403,7 @@ class NPMSpider(scrapy.Spider):
 	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", 
 							 "mocha", "jest", "ava", "tap", "jasmine"]
 	IGNORED_COMMANDS = ["watch"]
-	TRACKED_BUILD_COMMANDS = ["build", "compile"]
+	TRACKED_BUILD_COMMANDS = ["build", "compile", "init"]
 
 	# timeouts for stages, in seconds
 	INSTALL_TIMEOUT = 1000
