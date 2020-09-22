@@ -75,6 +75,7 @@ def run_build( manager, pkg_json, crawler):
 	retcode = 0
 	build_scripts = [b for b in pkg_json["scripts"].keys() if not set([ b.find(b_com) for b_com in crawler.TRACKED_BUILD_COMMANDS]) == {-1}]
 	build_scripts = [b for b in build_scripts if set([b.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
+	build_scripts = [b for b in build_scripts if set([pkg_json["scripts"][b].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
 	build_debug = ""
 	build_script_list = []
 	for b in build_scripts:
@@ -90,6 +91,7 @@ def run_build( manager, pkg_json, crawler):
 def run_tests( manager, pkg_json, crawler):
 	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in crawler.TRACKED_TEST_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
+	test_scripts = [t for t in test_scripts if set([pkg_json["scripts"][t].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
 	test_json_summary = {}
 	for t in test_scripts:
 		print("Running: " + manager + t)
@@ -400,9 +402,10 @@ class NPMSpider(scrapy.Spider):
 	COMPUTE_DEP_LISTS = False
 	TRACK_TESTS = True
 
-	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", 
+	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench", 
 							 "mocha", "jest", "ava", "tap", "jasmine"]
 	IGNORED_COMMANDS = ["watch"]
+	IGNORED_SUBSTRINGS = ["--watch", "nodemon"]
 	TRACKED_BUILD_COMMANDS = ["build", "compile", "init"]
 
 	# timeouts for stages, in seconds
@@ -435,6 +438,7 @@ class NPMSpider(scrapy.Spider):
 		cf_dict = config_json.get( "meta_info", {})
 		self.VERBOSE_MODE = cf_dict.get("VERBOSE_MODE", self.VERBOSE_MODE)
 		self.IGNORED_COMMANDS = cf_dict.get( "ignored_commands", self.IGNORED_COMMANDS)
+		self.IGNORED_SUBSTRINGS = cf_dict.get( "ignored_substrings", self.IGNORED_SUBSTRINGS)
 		self.RM_AFTER_CLONING = cf_dict.get( "rm_after_cloning", self.RM_AFTER_CLONING)
 
 		cf_dict = config_json.get( "dependencies", {})
