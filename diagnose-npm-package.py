@@ -108,18 +108,23 @@ def run_tests( manager, pkg_json, crawler):
 	return( retcode, test_json_summary)
 
 def called_in_command( str_comm, command, manager):
-	if command.find( str_comm) == 0:
-		return( True)
-	if command.find( "&&" + str_comm) > -1 or command.find( "&& " + str_comm) > -1:
-		return( True)
-	if command.find( "cross-env NODE_ENV=test " + str_comm) > -1 or command.find( "cross-env NODE_ENV=production " + str_comm) > -1:
-		return( True)
-	if command.find( "cross-env CI=true " + str_comm) > -1:
-		return( True)
-	if command.find( "opener " + str_comm) > -1:
-		return( True)
-	if command.find( "gulp " + str_comm) > -1:
-		return( True)
+	# command ends with command terminator (this list includes \0 end-of-string, 
+	# but this is not available to check in Python so we use endswith)
+	post_command_chars = [ "" ] if command.endswith(str_comm) else [ " ", "\t", ";"]
+	for pcc in post_command_chars:
+		check_comm = str_comm + pcc
+		if command.find( check_comm) == 0:
+			return( True)
+		if command.find( "&&" + check_comm) > -1 or command.find( "&& " + check_comm) > -1:
+			return( True)
+		if command.find( "cross-env NODE_ENV=test " + check_comm) > -1 or command.find( "cross-env NODE_ENV=production " + check_comm) > -1:
+			return( True)
+		if command.find( "cross-env CI=true " + check_comm) > -1:
+			return( True)
+		if command.find( "opener " + check_comm) > -1:
+			return( True)
+		if command.find( "gulp " + check_comm) > -1:
+			return( True)
 	return( False)
 
 def test_cond_count( test_output, regex_fct, condition, offset):
