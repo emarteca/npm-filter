@@ -1,4 +1,5 @@
 import scrapy
+from scrapy import signals
 from scrapy.crawler import CrawlerProcess
 from scrapy.selector import Selector
 from bs4 import BeautifulSoup
@@ -404,7 +405,7 @@ class NPMSpider(scrapy.Spider):
 
 	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench", 
 							 "mocha", "jest", "ava", "tap", "jasmine"]
-	IGNORED_COMMANDS = ["watch"]
+	IGNORED_COMMANDS = ["watch", "debug"]
 	IGNORED_SUBSTRINGS = ["--watch", "nodemon"]
 	TRACKED_BUILD_COMMANDS = ["build", "compile", "init"]
 
@@ -458,6 +459,15 @@ class NPMSpider(scrapy.Spider):
 		self.TRACK_TESTS = cf_dict.get("track_tests", self.TRACK_TESTS)
 
 	def parse(self, response):
+		# TODO should we handle specific response codes?
+		# successful responses are those in the 200s
+		# source: https://doc.scrapy.org/en/latest/topics/spider-middleware.html#module-scrapy.spidermiddlewares.httperror
+		if response.status > 299 or response.status < 200:
+			json_results = { "http_error_code": response.status, "message": "Could not analyze url: " + response.url }
+			with open( response.url[ len("https://www.npmjs.com/package/"):] + '__results.json', 'w') as f:
+				json.dump( json_results, f, indent=4)
+			return
+		
 		soup = BeautifulSoup(response.body, 'html.parser')
 		# print(soup.prettify())
 		script = soup.find('script', text=re.compile('window\.__context__'))
@@ -484,8 +494,9 @@ class NPMSpider(scrapy.Spider):
 
 process = CrawlerProcess(settings={
 	"FEEDS": {
-	"items.json": {"format": "json"},
+		"items.json": {"format": "json"},
 	},
+	"HTTPERROR_ALLOW_ALL": True
 })
 
 
