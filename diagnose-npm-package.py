@@ -171,7 +171,13 @@ class TestInfo:
 			"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
 			"passing": ("passed", -2), 
 			"failing": ("failed", -2)
-		}
+		},
+		"ava_2": 
+			{
+				"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '$',
+				"passing": ("passed", -1),
+				"failing": ("failed", -1)
+			},
 	}
 	TRACKED_INFRAS = {
 		"mocha": {
@@ -196,7 +202,7 @@ class TestInfo:
 		},
 		"ava": {
 			"name": "ava", 
-			"output_checkers": [ "ava" ]
+			"output_checkers": [ "ava", "ava_2" ]
 		},
 		"gulp": {
 			"name": "gulp", 
@@ -263,6 +269,8 @@ class TestInfo:
 		if not self.test_infras or self.test_infras == []:
 			return
 		test_output = self.output_stream.decode('utf-8') + self.error_stream.decode('utf-8')
+		ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+		test_output = ansi_escape.sub('', test_output)
 		self.num_passing = 0
 		self.num_failing = 0
 		self.timed_out = (self.error_stream.decode('utf-8') == "TIMEOUT ERROR")
@@ -271,9 +279,10 @@ class TestInfo:
 			if infra in TestInfo.TRACKED_RUNNERS and output_checker_names == []:
 				output_checker_names = self.OUTPUT_CHECKERS.keys() # all the checkers
 			for checker_name in output_checker_names:
+				div_factor = 2 if checker_name == "ava_2" else 1
 				checker = self.OUTPUT_CHECKERS[ checker_name]
-				self.num_passing += test_cond_count( test_output, checker["output_regex_fct"], checker["passing"][0], checker["passing"][1])
-				self.num_failing += test_cond_count( test_output, checker["output_regex_fct"], checker["failing"][0], checker["failing"][1])
+				self.num_passing += int(test_cond_count( test_output, checker["output_regex_fct"], checker["passing"][0], checker["passing"][1]) / div_factor)
+				self.num_failing += int(test_cond_count( test_output, checker["output_regex_fct"], checker["failing"][0], checker["failing"][1]) / div_factor)
 
 	def get_json_rep( self):
 		json_rep = {}
