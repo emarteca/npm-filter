@@ -3,3 +3,8 @@ items.json
 *__page_data.html
 *__results.json
 local_mount/*
+
+tests/diagnose-npm-package.py
+tests/TESTING_REPOS/*
+tests/default_filter_config.json
+tests/local_mount/*

@@ -509,7 +509,6 @@ class NPMSpider(scrapy.Spider):
 
 	def iterate_over_pkgs_from_files( self):
 		for pkg_name in self.packages:
-			print("wowza bitch")
 			with open(pkg_name + '__page_data.html', 'rb') as f:
 				html_text = f.read()
 			self.parse_process(html_text)
