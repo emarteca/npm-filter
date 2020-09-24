@@ -2,4 +2,4 @@ TESTING_REPOS/*
 items.json
 *__page_data.html
 *__results.json
-
+local_mount/*

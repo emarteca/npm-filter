@@ -481,8 +481,12 @@ class NPMSpider(scrapy.Spider):
 			with open( response.url[ len("https://www.npmjs.com/package/"):] + '__results.json', 'w') as f:
 				json.dump( json_results, f, indent=4)
 			return
+		self.parse_process(response.body)
+		with open(package_name + '__page_data.html', 'wb') as f:
+			f.write(response.body)
 		
-		soup = BeautifulSoup(response.body, 'html.parser')
+	def parse_process( self, html_text):	
+		soup = BeautifulSoup(html_text, 'html.parser')
 		# print(soup.prettify())
 		script = soup.find('script', text=re.compile('window\.__context__'))
 		json_text = re.search(r'^\s*window\.__context__\s*=\s*({.*?})\s*$',
@@ -500,11 +504,15 @@ class NPMSpider(scrapy.Spider):
 		json_results["metadata"]["repo_link"] = repo_link
 		json_results["metadata"]["num_dependents"] = num_dependents
 		
-		with open(package_name + '__page_data.html', 'wb') as f:
-			f.write(response.body)
 		with open(package_name + '__results.json', 'w') as f:
 			json.dump( json_results, f, indent=4)
 
+	def iterate_over_pkgs_from_files( self):
+		for pkg_name in self.packages:
+			print("wowza bitch")
+			with open(pkg_name + '__page_data.html', 'rb') as f:
+				html_text = f.read()
+			self.parse_process(html_text)
 
 process = CrawlerProcess(settings={
 	"FEEDS": {
@@ -517,9 +525,18 @@ process = CrawlerProcess(settings={
 argparser = argparse.ArgumentParser(description="Diagnose npm packages")
 argparser.add_argument("--packages", metavar="package", type=str, nargs='+', help="a package to be diagnosed")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
+argparser.add_argument("--html", metavar="html_file", type=bool, nargs='?', help="read from existing html instead of scraping")
 args = argparser.parse_args()
 
 config = args.config if args.config else ""
+html = args.html if args.html else False
 
-process.crawl(NPMSpider, packages=args.packages, config_file=config)
-process.start() # the script will block here until the crawling is finished
+if not args.html:
+	process.crawl(NPMSpider, packages=args.packages, config_file=config)
+	process.start() # the script will block here until the crawling is finished
+else:
+	# reading from a config file
+	spider = NPMSpider(args.packages, config_file=config)
+	spider.iterate_over_pkgs_from_files()
+	
+
