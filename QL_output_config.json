@@ -1,0 +1,28 @@
+{
+	"install": {
+		"timeout": 600
+	},
+	"dependencies": {
+		"track_deps": false,
+		"include_dev_deps": false
+	},
+	"build": {
+		"tracked_build_commands": ["build", "compile", "init"],
+		"timeout": 300
+	},
+	"test": {
+		"track_tests": true,
+		"tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench",
+								  "mocha", "jest", "ava", "tap", "jasmine"],
+		"timeout": 300
+	},
+	"meta_info": {
+		"VERBOSE_MODE": false,
+		"ignored_commands": ["watch", "debug"],
+		"ignored_substrings": ["--watch", "nodemon"],
+		"rm_after_cloning": true
+	},
+	"QL_output": {
+		"QL_cutoff": 5
+	}
+}

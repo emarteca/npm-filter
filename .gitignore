@@ -8,3 +8,5 @@ tests/diagnose-npm-package.py
 tests/TESTING_REPOS/*
 tests/default_filter_config.json
 tests/local_mount/*
+
+__pycache__/*
