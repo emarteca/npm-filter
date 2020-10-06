@@ -65,9 +65,9 @@ def get_dependencies( pkg_json, manager, include_dev_deps):
 
 def run_build( manager, pkg_json, crawler):
 	retcode = 0
-	build_scripts = [b for b in pkg_json["scripts"].keys() if not set([ b.find(b_com) for b_com in crawler.TRACKED_BUILD_COMMANDS]) == {-1}]
+	build_scripts = [b for b in pkg_json.get("scripts", {}).keys() if not set([ b.find(b_com) for b_com in crawler.TRACKED_BUILD_COMMANDS]) == {-1}]
 	build_scripts = [b for b in build_scripts if set([b.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
-	build_scripts = [b for b in build_scripts if set([pkg_json["scripts"][b].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
+	build_scripts = [b for b in build_scripts if set([pkg_json.get("scripts", {})[b].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
 	build_debug = ""
 	build_script_list = []
 	for b in build_scripts:
@@ -81,15 +81,15 @@ def run_build( manager, pkg_json, crawler):
 	return( retcode, build_script_list, build_debug)
 
 def run_tests( manager, pkg_json, crawler):
-	test_scripts = [t for t in pkg_json["scripts"].keys() if not set([ t.find(t_com) for t_com in crawler.TRACKED_TEST_COMMANDS]) == {-1}]
+	test_scripts = [t for t in pkg_json.get("scripts", {}).keys() if not set([ t.find(t_com) for t_com in crawler.TRACKED_TEST_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
-	test_scripts = [t for t in test_scripts if set([pkg_json["scripts"][t].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
+	test_scripts = [t for t in test_scripts if set([pkg_json.get("scripts", {})[t].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
 	test_json_summary = {}
 	for t in test_scripts:
 		print("Running: " + manager + t)
 		error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
 		test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
-		test_info.set_test_command( pkg_json["scripts"][t])
+		test_info.set_test_command( pkg_json.get("scripts", {})[t])
 		test_info.compute_test_infras()
 		test_info.compute_nested_test_commands( test_scripts)
 		test_info.compute_test_stats()
