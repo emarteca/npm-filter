@@ -85,6 +85,7 @@ def run_tests( manager, pkg_json, crawler):
 	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([pkg_json.get("scripts", {})[t].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
 	test_json_summary = {}
+	retcode = 0
 	for t in test_scripts:
 		print("Running: " + manager + t)
 		error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
