@@ -416,14 +416,38 @@ def diagnose_package( repo_link, crawler):
 	if crawler.SCRIPTS_OVER_CODE != []:
 		json_out["scripts_over_code"] = {}
 		for script in crawler.SCRIPTS_OVER_CODE:
+			print("Running script over code: " + script)
 			json_out["scripts_over_code"][script] = {}
 			error, output, retcode = run_command( script)
-			script_output = output.decode('utf-8') + error.decode('utf-8')
-			ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-			script_output = ansi_escape.sub('', script_output)
-			json_out["scripts_over_code"][script]["output"] = script_output
+			if crawler.VERBOSE_MODE:
+				script_output = output.decode('utf-8') + error.decode('utf-8')
+				ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+				script_output = ansi_escape.sub('', script_output)
+				json_out["scripts_over_code"][script]["output"] = script_output
 			if retcode != 0:
-				json_out["scripts_over_code"]["ERROR"] = True
+				json_out["scripts_over_code"][script]["ERROR"] = True
+	if crawler.QL_QUERIES != []:
+		# first, move back out of the repo
+		os.chdir(cur_dir)
+		json_out["QL_queries"] = {}
+		for query in crawler.QL_QUERIES:
+			print("Running QL query: " + query)
+			json_out["QL_queries"][query] = {}
+			# runQuery.sh does the following:
+			# - create QL database (with name repo_name)
+			# - save the result of the query.ql in repo_name__query__results.csv
+			# - clean up: delete the bqrs file
+			error, output, retcode = run_command( "./runQuery.sh TESTING_REPOS/" + repo_name + " " + repo_name + " " + query)
+			if crawler.VERBOSE_MODE:
+				query_output = output.decode('utf-8') + error.decode('utf-8')
+				ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+				query_output = ansi_escape.sub('', query_output)
+				json_out["QL_queries"][query]["output"] = query_output
+			if retcode != 0:
+				json_out["QL_queries"][query]["ERROR"] = True
+		if crawler.RM_AFTER_CLONING:
+			run_command( "rm -rf QLDBs/" + repo_name)
+		os.chdir( "TESTING_REPOS/" + repo_name)
 
 
 	return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))

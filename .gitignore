@@ -1,4 +1,5 @@
 TESTING_REPOS/*
+QLDBs/*
 items.json
 *__page_data.html
 *__results.json
@@ -10,3 +11,4 @@ tests/default_filter_config.json
 tests/local_mount/*
 
 __pycache__/*
+.cache/*

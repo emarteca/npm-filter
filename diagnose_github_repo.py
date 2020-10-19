@@ -15,6 +15,8 @@ class RepoWalker():
 	name = "npm-pkgs"
 	VERBOSE_MODE = False
 	RM_AFTER_CLONING = False
+	SCRIPTS_OVER_CODE = []
+	QL_QUERIES = []
 
 	INCLUDE_DEV_DEPS = False
 	COMPUTE_DEP_LISTS = False
@@ -33,8 +35,6 @@ class RepoWalker():
 	TEST_TIMEOUT = 1000
 
 	QL_CUTOFF = 5 # ignore if there are < 5 results
-
-	SCRIPTS_OVER_CODE = []
 	
 	def __init__(self, config_file=""):
 		self.set_up_config( config_file)
@@ -62,6 +62,7 @@ class RepoWalker():
 		self.IGNORED_SUBSTRINGS = cf_dict.get( "ignored_substrings", self.IGNORED_SUBSTRINGS)
 		self.RM_AFTER_CLONING = cf_dict.get( "rm_after_cloning", self.RM_AFTER_CLONING)
 		self.SCRIPTS_OVER_CODE = cf_dict.get( "scripts_over_code", self.SCRIPTS_OVER_CODE)
+		self.QL_QUERIES = cf_dict.get( "QL_queries", self.QL_QUERIES)
 
 		cf_dict = config_json.get( "dependencies", {})
 		self.INCLUDE_DEV_DEPS = cf_dict.get("include_dev_deps", self.INCLUDE_DEV_DEPS)

@@ -18,6 +18,7 @@ class NPMSpider(scrapy.Spider):
 	VERBOSE_MODE = False
 	RM_AFTER_CLONING = False
 	SCRIPTS_OVER_CODE = []
+	QL_QUERIES = []
 
 	INCLUDE_DEV_DEPS = False
 	COMPUTE_DEP_LISTS = False
@@ -62,6 +63,7 @@ class NPMSpider(scrapy.Spider):
 		self.IGNORED_SUBSTRINGS = cf_dict.get( "ignored_substrings", self.IGNORED_SUBSTRINGS)
 		self.RM_AFTER_CLONING = cf_dict.get( "rm_after_cloning", self.RM_AFTER_CLONING)
 		self.SCRIPTS_OVER_CODE = cf_dict.get( "scripts_over_code", self.SCRIPTS_OVER_CODE)
+		self.QL_QUERIES = cf_dict.get( "QL_queries", self.QL_QUERIES)
 
 		cf_dict = config_json.get( "dependencies", {})
 		self.INCLUDE_DEV_DEPS = cf_dict.get("include_dev_deps", self.INCLUDE_DEV_DEPS)
