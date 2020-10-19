@@ -327,16 +327,24 @@ class TestInfo:
 
 def on_diagnose_exit( json_out, crawler, cur_dir, repo_name):
 	# move back to the original working directory
-	os.chdir( cur_dir)
-	if crawler.RM_AFTER_CLONING:
-		run_command( "rm -rf TESTING_REPOS/" + repo_name)
+	if repo_name != "":
+		os.chdir( cur_dir)
+		if crawler.RM_AFTER_CLONING:
+			run_command( "rm -rf TESTING_REPOS/" + repo_name)
 	return( json_out)
 
 def diagnose_package( repo_link, crawler):
 	json_out = {}
 
-	repo_name = repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
+	repo_name = ""
 	cur_dir = os.getcwd()
+	try: 
+		repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
+	except: 
+		print("ERROR cloning the repo -- malformed repo link. Exiting now.")
+		json_out["setup"] = {}
+		json_out["setup"]["repo_cloning_ERROR"] = True
+		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 
 	print("Diagnosing: " + repo_name + " --- from: " + repo_link)
 

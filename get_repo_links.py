@@ -15,3 +15,10 @@ def from_grepped_old_QL_output( filename, cutoff=0):
 	end_link = ""
 	return([ start_link + line.split(":")[0].split("/output.csv")[0] + end_link 
 						for line in file_lines if int(line.split(":")[1]) >= cutoff ])
+
+# from a file that's just a list of github repos 
+# of the form: https://github.com/username/reponame
+def from_list_of_repos( filename):
+	with open(filename) as f:
+		file_lines = f.read().split("\n")
+	return( file_lines)

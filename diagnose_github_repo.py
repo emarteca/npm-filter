@@ -34,14 +34,11 @@ class RepoWalker():
 
 	QL_CUTOFF = 5 # ignore if there are < 5 results
 	
-	def __init__(self, old_QL_input=None, config_file=""):
+	def __init__(self, config_file=""):
 		self.set_up_config( config_file)
-		if old_QL_input is not None:
-			try:
-				self.repo_links = GetLinks.from_grepped_old_QL_output(old_QL_input, self.QL_CUTOFF)
-			except:
-				print("Error reading old QL input file: " + old_QL_input + " --- no repos to try")
-				self.repo_links = []
+
+	def set_repo_links(self, repo_links):
+		self.repo_links = repo_links
 
 	def set_up_config( self, config_file):
 		if not os.path.exists(config_file):
@@ -94,15 +91,29 @@ class RepoWalker():
 
 argparser = argparse.ArgumentParser(description="Diagnose github repos, from a variety of sources")
 argparser.add_argument("--old_QL_input", metavar="rfile", type=str, nargs='?', help="file with list of grepped old QL output")
+argparser.add_argument("--repo_list_file", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
 args = argparser.parse_args()
 
 config = args.config if args.config else ""
 
-old_QL_input = args.old_QL_input if args.old_QL_input else None 
+walker = RepoWalker(config_file=config)
 
+repo_links = []
+if args.old_QL_input:
+	try:
+		repo_links += GetLinks.from_grepped_old_QL_output(args.old_QL_input, walker.QL_CUTOFF)
+	except:
+		print("Error reading old QL input file: " + args.old_QL_input + " --- no repos to try")
+		repo_links += []
+if args.repo_list_file:
+	try:
+		repo_links += GetLinks.from_list_of_repos(args.repo_list_file)
+	except:
+		print("Error reading list of repos file: " + args.repo_list_file + " --- no repos to try")
+		repo_links += []
 
-walker = RepoWalker(old_QL_input=old_QL_input, config_file=config)
+walker.set_repo_links( repo_links)
 walker.iterate_over_repos()
 	
 
