@@ -339,7 +339,7 @@ def diagnose_package( repo_link, crawler):
 	repo_name = ""
 	cur_dir = os.getcwd()
 	try: 
-		repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
+		repo_name = repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
 	except: 
 		print("ERROR cloning the repo -- malformed repo link. Exiting now.")
 		json_out["setup"] = {}
@@ -412,5 +412,18 @@ def diagnose_package( repo_link, crawler):
 	if crawler.TRACK_TESTS:
 		(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler)
 		json_out["testing"] = test_json_summary
+
+	if crawler.SCRIPTS_OVER_CODE != []:
+		json_out["scripts_over_code"] = {}
+		for script in crawler.SCRIPTS_OVER_CODE:
+			json_out["scripts_over_code"][script] = {}
+			error, output, retcode = run_command( script)
+			script_output = output.decode('utf-8') + error.decode('utf-8')
+			ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+			script_output = ansi_escape.sub('', script_output)
+			json_out["scripts_over_code"][script]["output"] = script_output
+			if retcode != 0:
+				json_out["scripts_over_code"]["ERROR"] = True
+
 
 	return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))

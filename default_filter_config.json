@@ -20,6 +20,7 @@
 		"VERBOSE_MODE": false,
 		"ignored_commands": ["watch", "debug"],
 		"ignored_substrings": ["--watch", "nodemon"],
-		"rm_after_cloning": false
+		"rm_after_cloning": false,
+		"scripts_over_code": [ "ls" ]
 	}
 }
