@@ -1,0 +1,6 @@
+{
+	"dependencies": {
+		"dependent-packages": "^2.2.2",
+		"yargs": "*"
+	}
+}

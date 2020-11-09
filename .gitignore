@@ -4,6 +4,7 @@ items.json
 *__page_data.html
 *__results.json
 local_mount/*
+node_modules/*
 
 tests/diagnose-npm-package.py
 tests/TESTING_REPOS/*
