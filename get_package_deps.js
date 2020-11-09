@@ -18,6 +18,6 @@ if (!argv.output_file) {
 			console.log("Error printing to: " + argv.output_file);
 			process.exit(1);
 		}
-		console.log("Done!");
+		console.log("Done getting deps for: " + package_name);
 	});
 }
