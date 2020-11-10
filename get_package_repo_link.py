@@ -8,6 +8,7 @@ import json
 import logging
 import argparse
 import time
+import middlewares
 
 logging.getLogger('scrapy').propagate = False
 
@@ -57,9 +58,13 @@ process = CrawlerProcess(settings={
 	"HTTPERROR_ALLOW_ALL": True,
 	# "RETRY_HTTP_CODES" : [500, 502, 503, 504, 400, 403, 404, 408],
 	# next couple settings are for beating the npm request rate limiter
-	"DOWNLOAD_DELAY": 0.75,    # 3/4 second delay
+	#"DOWNLOAD_DELAY": 0.75,    # 3/4 second delay
 	"RETRY_TIMES": 6,
-	"CONCURRENT_REQUESTS_PER_DOMAIN" : 2
+	#"CONCURRENT_REQUESTS_PER_DOMAIN" : 2,
+ 	"DOWNLOADER_MIDDLEWARES": {
+ 		"scrapy.downloadermiddlewares.retry.RetryMiddleware": None,
+ 		"middlewares.TooManyRequestsRetryMiddleware": 543,
+	}
 })
 
 
