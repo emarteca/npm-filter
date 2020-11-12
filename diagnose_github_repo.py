@@ -96,6 +96,7 @@ class RepoWalker():
 argparser = argparse.ArgumentParser(description="Diagnose github repos, from a variety of sources")
 argparser.add_argument("--old_QL_input", metavar="rfile", type=str, nargs='?', help="file with list of grepped old QL output")
 argparser.add_argument("--repo_list_file", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links")
+argparser.add_argument("--repo_link", metavar="rlink", type=str, nargs='?', help="single repo link")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
 args = argparser.parse_args()
 
@@ -117,6 +118,9 @@ if args.repo_list_file:
 		print("Error reading list of repos file: " + args.repo_list_file + " --- no repos to try")
 		repo_links += []
 
+
+if args.repo_link:
+	repo_links += [args.repo_link]
 walker.set_repo_links( repo_links)
 walker.iterate_over_repos()
 	
