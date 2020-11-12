@@ -56,7 +56,7 @@ process = CrawlerProcess(settings={
 		"items.json": {"format": "json"},
 	},
 	"HTTPERROR_ALLOW_ALL": True,
-	# "RETRY_HTTP_CODES" : [500, 502, 503, 504, 400, 403, 404, 408],
+	"RETRY_HTTP_CODES" : [429],
 	# next couple settings are for beating the npm request rate limiter
 	#"DOWNLOAD_DELAY": 0.75,    # 3/4 second delay
 	"RETRY_TIMES": 6,

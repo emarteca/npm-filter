@@ -10,6 +10,7 @@ import os
 import logging
 import argparse
 from test_JS_repo_lib import *
+import middlewares
 
 logging.getLogger('scrapy').propagate = False
 
@@ -127,8 +128,13 @@ process = CrawlerProcess(settings={
 	"FEEDS": {
 		"items.json": {"format": "json"},
 	},
-	"HTTPERROR_ALLOW_ALL": True
-})
+	"HTTPERROR_ALLOW_ALL": True,
+        "RETRY_HTTP_CODES" : [429],
+        "DOWNLOADER_MIDDLEWARES": {
+            "scrapy.downloadermiddlewares.retry.RetryMiddleware": None,
+            "middlewares.TooManyRequestsRetryMiddleware": 543,
+        }
+    })
 
 
 argparser = argparse.ArgumentParser(description="Diagnose npm packages")
