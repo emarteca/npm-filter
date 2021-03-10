@@ -8,4 +8,4 @@ if [ -f $config_file ]; then
 fi
 
 # you'll probably want to bg this
-nohup parallel -j 20 -a $repo_link_file --timeout 600 --joblog job.log python diagnose_github_repo.py --repo_link {} --config $config_file
+nohup parallel -j 20 -a $repo_link_file --timeout 600 --joblog job.log python3 diagnose_github_repo.py --repo_link {} --config $config_file
