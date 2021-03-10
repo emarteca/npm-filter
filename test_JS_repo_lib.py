@@ -44,7 +44,7 @@ def run_installation( pkg_json, crawler):
 
 # note: no timeout option for get_dependencies, so "None" is passed as a default timeout argument to run_command
 def get_dependencies( pkg_json, manager, include_dev_deps):
-	if pkg_json["devDependencies"] and not include_dev_deps:
+	if pkg_json.get("devDependencies", None) and not include_dev_deps:
 		run_command( "rm -r node_modules")
 		run_command( "mv package.json TEMP_package.json_TEMP")
 		dev_deps = pkg_json["devDependencies"]
@@ -54,7 +54,7 @@ def get_dependencies( pkg_json, manager, include_dev_deps):
 		run_command( manager + (" install" if manager == "npm run " else ""))
 		pkg_json["devDependencies"] = dev_deps
 	# get the list of deps, excluding hidden directories
-	deps = [d for d in os.listdir("node_modules") if not d[0] == "."] 
+	deps = [] if not os.path.isdir("node_modules") else [d for d in os.listdir("node_modules") if not d[0] == "."] 
 	# then, reset the deps (if required)
 	if pkg_json["devDependencies"] and not include_dev_deps:
 		run_command( "rm -r node_modules")
