@@ -3,7 +3,7 @@
 repo_link_file=$1
 config_file=$2
 
-if [ -f $config_file ]; then 
+if [ ! -f $config_file ]; then 
 	config_file="QL_output_config.json"
 fi
 
