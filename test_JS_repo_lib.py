@@ -3,13 +3,14 @@ import subprocess
 import json
 import os
 
-def run_command( command, timeout=None):
-	try:
-		process = subprocess.run( command.split(), stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
-	except subprocess.TimeoutExpired:
-		error_string = "TIMEOUT ERROR: for user-specified timeout " + str(timeout) + " seconds"
-		error = "TIMEOUT ERROR"
-		return( error.encode('utf-8'), error_string.encode('utf-8'), 1) # non-zero return code
+def run_command( commands, timeout=None):
+	for command in commands.split(";"):
+		try:
+			process = subprocess.run( command.split(), stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout)
+		except subprocess.TimeoutExpired:
+			error_string = "TIMEOUT ERROR: for user-specified timeout " + str(timeout) + " seconds"
+			error = "TIMEOUT ERROR"
+			return( error.encode('utf-8'), error_string.encode('utf-8'), 1) # non-zero return code
 	return( process.stderr, process.stdout, process.returncode)
 
 def run_installation( pkg_json, crawler):
@@ -419,11 +420,10 @@ def diagnose_package( repo_link, crawler):
 			print("Running script over code: " + script)
 			json_out["scripts_over_code"][script] = {}
 			error, output, retcode = run_command( script)
-			if crawler.VERBOSE_MODE:
-				script_output = output.decode('utf-8') + error.decode('utf-8')
-				ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-				script_output = ansi_escape.sub('', script_output)
-				json_out["scripts_over_code"][script]["output"] = script_output
+			script_output = output.decode('utf-8') + error.decode('utf-8')
+			ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+			script_output = ansi_escape.sub('', script_output)
+			json_out["scripts_over_code"][script]["output"] = script_output
 			if retcode != 0:
 				json_out["scripts_over_code"][script]["ERROR"] = True
 	if crawler.QL_QUERIES != []:

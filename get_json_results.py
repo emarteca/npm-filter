@@ -51,7 +51,6 @@ def get_passing_test_commands(json_check, min_passing=1):
 all_files = [ fname for fname in os.listdir() if fname.find("__results.json") != -1]
 passing_files = []
 for file in all_files:
-	print(file)
 	with open(file) as f:
 		json_check = json.load(f)
 	proj_name = file[ : file.index("__results.json")]
