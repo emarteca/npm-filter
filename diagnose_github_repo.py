@@ -36,8 +36,9 @@ class RepoWalker():
 
 	QL_CUTOFF = 5 # ignore if there are < 5 results
 	
-	def __init__(self, config_file=""):
+	def __init__(self, config_file="", output_dir = "."):
 		self.set_up_config( config_file)
+		self.output_dir = output_dir
 
 	def set_repo_links(self, repo_links):
 		self.repo_links = repo_links
@@ -89,7 +90,7 @@ class RepoWalker():
 			json_results = diagnose_package( repo, self)
 			json_results["metadata"] = {}
 			json_results["metadata"]["repo_link"] = repo
-			with open(package_name + '__results.json', 'w') as f:
+			with open(self.output_dir + "/" + package_name + '__results.json', 'w') as f:
 				json.dump( json_results, f, indent=4)
 
 
@@ -98,11 +99,14 @@ argparser.add_argument("--old_QL_input", metavar="rfile", type=str, nargs='?', h
 argparser.add_argument("--repo_list_file", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links")
 argparser.add_argument("--repo_link", metavar="rlink", type=str, nargs='?', help="single repo link")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
+argparser.add_argument("--output_dir", metavar="output_dir", type=str, nargs='?', help="directory for results to be output to")
 args = argparser.parse_args()
 
 config = args.config if args.config else ""
 
-walker = RepoWalker(config_file=config)
+output_dir = args.output_dir if args.output_dir else "."
+
+walker = RepoWalker(config_file=config, output_dir=output_dir)
 
 repo_links = []
 if args.old_QL_input:

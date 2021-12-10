@@ -3,7 +3,9 @@
 rm build.sh
 rm Dockerfile
 rm runDocker.sh
-rm -r local_mount
+if [ -d local_mount ]; then
+	rm -r local_mount
+fi
 
 mkdir -p /home/codeql_home
 

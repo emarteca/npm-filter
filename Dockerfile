@@ -8,7 +8,7 @@ RUN apt update
 RUN apt -y install python3-pip
 RUN pip3 install bs4 scrapy
 
-RUN mkdir -p /home/npm-filter
+RUN mkdir -p /home/npm-filter/results
 
 COPY . /home/npm-filter
 

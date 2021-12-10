@@ -118,6 +118,8 @@ def called_in_command( str_comm, command, manager):
 			return( True)
 		if command.find( "gulp " + check_comm) > -1:
 			return( True)
+		if command.find( "nyc " + check_comm) > -1:
+			return( True)
 	return( False)
 
 def test_cond_count( test_output, regex_fct, condition, offset):

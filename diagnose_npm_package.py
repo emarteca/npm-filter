@@ -37,11 +37,12 @@ class NPMSpider(scrapy.Spider):
 	BUILD_TIMEOUT = 1000
 	TEST_TIMEOUT = 1000
 	
-	def __init__(self, packages=None, config_file="", *args, **kwargs):
+	def __init__(self, packages=None, config_file="", output_dir=".", *args, **kwargs):
 		if packages is not None:
 			self.packages = packages
 		self.start_urls = ['https://www.npmjs.com/package/' + pkg for pkg in self.packages]
 		self.set_up_config( config_file)
+		self.output_dir = output_dir
 		super(NPMSpider, self).__init__(*args, **kwargs)
 
 	def set_up_config( self, config_file):
@@ -92,7 +93,7 @@ class NPMSpider(scrapy.Spider):
 				json.dump( json_results, f, indent=4)
 			return
 		package_name = self.parse_process(response.body)
-		with open(package_name + '__page_data.html', 'wb') as f:
+		with open(self.output_dir + "/" + package_name + '__page_data.html', 'wb') as f:
 			f.write(response.body)
 		
 	def parse_process( self, html_text):	
@@ -114,7 +115,7 @@ class NPMSpider(scrapy.Spider):
 		json_results["metadata"]["repo_link"] = repo_link
 		json_results["metadata"]["num_dependents"] = num_dependents
 		
-		with open(package_name + '__results.json', 'w') as f:
+		with open(self.output_dir + "/" + package_name + '__results.json', 'w') as f:
 			json.dump( json_results, f, indent=4)
 		return(package_name)
 
@@ -141,17 +142,20 @@ argparser = argparse.ArgumentParser(description="Diagnose npm packages")
 argparser.add_argument("--packages", metavar="package", type=str, nargs='+', help="a package to be diagnosed")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
 argparser.add_argument("--html", metavar="html_file", type=bool, nargs='?', help="read from existing html instead of scraping")
+argparser.add_argument("--output_dir", metavar="output_dir", type=str, nargs='?', help="directory for results to be output to")
 args = argparser.parse_args()
+
+output_dir = args.output_dir if args.output_dir else "."
 
 config = args.config if args.config else ""
 html = args.html if args.html else False
 
 if not args.html:
-	process.crawl(NPMSpider, packages=args.packages, config_file=config)
+	process.crawl(NPMSpider, packages=args.packages, config_file=config, output_dir=output_dir)
 	process.start() # the script will block here until the crawling is finished
 else:
 	# reading from a config file
-	spider = NPMSpider(args.packages, config_file=config)
+	spider = NPMSpider(args.packages, config_file=config, output_dir=output_dir)
 	spider.iterate_over_pkgs_from_files()
 	
 
