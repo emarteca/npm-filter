@@ -1,14 +1,15 @@
 import scrapy
 from scrapy import signals
 from scrapy.crawler import CrawlerProcess
-# from pydispatch import dispatcher
 from bs4 import BeautifulSoup
 import re
 import json
 import logging
 import argparse
 import time
-import middlewares
+import sys
+sys.path.append("..")
+from src import middlewares
 
 logging.getLogger('scrapy').propagate = False
 

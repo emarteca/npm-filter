@@ -336,7 +336,7 @@ def on_diagnose_exit( json_out, crawler, cur_dir, repo_name):
 			run_command( "rm -rf TESTING_REPOS/" + repo_name)
 	return( json_out)
 
-def diagnose_package( repo_link, crawler):
+def diagnose_package( repo_link, crawler, commit_SHA=None):
 	json_out = {}
 
 	repo_name = ""
@@ -372,6 +372,17 @@ def diagnose_package( repo_link, crawler):
 
 	# move into the repo and begin testing
 	os.chdir( repo_name)
+
+	# checkout the specified commit if needed
+	if commit_SHA:
+		print("Checking out specified commit: " + commit_SHA)
+		error, output, retcode = run_command( "git checkout " + commit_SHA)
+		if retcode != 0:
+			print("ERROR checking out specified commit. Exiting now.")
+			json_out["setup"] = {}
+			json_out["setup"]["repo_commit_checkout_ERROR"] = True
+			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	
 
 	pkg_json = None
 	try:

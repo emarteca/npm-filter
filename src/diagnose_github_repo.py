@@ -7,9 +7,19 @@ from test_JS_repo_lib import *
 import get_repo_links as GetLinks
 
 # expecting links to look like :
-# https://github.com/user/reponame
+# https://github.com/user/reponame [optional commit SHA]
 def get_name_from_link(link): 
-	return( link.split("/")[-1])
+	# split first on whitespace and take the first word
+	# to make sure we ignore the optional commit SHA
+	return( link.split()[0].split("/")[-1])
+
+def get_repo_and_SHA_from_repo_link(repo):
+	split_res = repo.split()
+	commit_SHA = None
+	if len(split_res) > 1:
+		commit_SHA = split_res[1]
+	return(split_res[0], commit_SHA)
+
 
 class RepoWalker():
 	name = "npm-pkgs"
@@ -86,10 +96,14 @@ class RepoWalker():
 
 	def iterate_over_repos( self):
 		for repo in self.repo_links:
-			package_name = get_name_from_link( repo)
-			json_results = diagnose_package( repo, self)
+			[repo_link, commit_SHA] = get_repo_and_SHA_from_repo_link(repo)
+			package_name = get_name_from_link( repo_link)
+			json_results = diagnose_package( repo_link, self, commit_SHA)
 			json_results["metadata"] = {}
-			json_results["metadata"]["repo_link"] = repo
+			json_results["metadata"]["repo_link"] = repo_link
+			# if not None
+			if commit_SHA:
+				json_results["metadata"]["repo_commit_SHA"] = commit_SHA
 			with open(self.output_dir + "/" + package_name + '__results.json', 'w') as f:
 				json.dump( json_results, f, indent=4)
 

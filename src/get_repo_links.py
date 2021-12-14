@@ -18,7 +18,10 @@ def from_grepped_old_QL_output( filename, cutoff=0):
 
 # from a file that's just a list of github repos 
 # of the form: https://github.com/username/reponame
+# optionally, users can specify a particular commit SHA to run over
+# this should be separated from the repo by some whitespace
 def from_list_of_repos( filename):
 	with open(filename) as f:
 		file_lines = f.read().split("\n")
-	return( file_lines)
+	# filter out empty lines and return
+	return( [ f for f in file_lines if len(f) > 0]) 
