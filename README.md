@@ -16,16 +16,22 @@ Since the entire point of this tool is to run code from a set of packages/projec
 ./runDocker.sh [regular command to run npm-filter]
 
 # example use
-./runDocker.sh python3 diagnose_github_repo.py --repo_link https://github.com/jprichardson/node-fs-extra
+./runDocker.sh python3 src/diagnose_github_repo.py --repo_link https://github.com/jprichardson/node-fs-extra
 
 # another example use
-./runDocker.sh python3 diagnose_npm_package.py --packages body-parser
+./runDocker.sh python3 src/diagnose_npm_package.py --packages body-parser
 
 ```
 
 ### Results
 Results from running the docker will be output to a `npm_filter_docker_results` directory generated in the directory you run the container in.
 
+### Parallel execution: also in docker
+```
+/runParallelGitReposDocker.sh repo_link_file
+```
+Results are in `npm_filter_parallel_docker_results`.
+Note that it's execution in parallel in _one_ docker container, and _not_ parallel docker containers.
 
 ## Running locally
 You can also run this locally on your machine.
@@ -37,7 +43,7 @@ To do so, you'll need to have the following installed:
 * node
 
 ### Usage
-`python diagnose-npm-package.py --packages p1 [p2, ...] [--config config_file] [--output_dir dir_to_output_results_to]`
+`python src/diagnose-npm-package.py --packages p1 [p2, ...] [--config config_file] [--output_dir dir_to_output_results_to]`
 
 
 ## TODOs

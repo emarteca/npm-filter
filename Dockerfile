@@ -2,7 +2,7 @@ FROM ubuntu:latest
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
-	&& apt-get -y install --no-install-recommends python3 git unzip vim yarn curl gnupg nodejs npm xz-utils
+	&& apt-get -y install --no-install-recommends python3 git unzip vim yarn curl gnupg nodejs npm xz-utils parallel
 
 RUN apt update
 RUN apt -y install python3-pip
