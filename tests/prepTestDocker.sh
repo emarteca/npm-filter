@@ -1,4 +1,7 @@
 #!/bin/bash
 
-cp ../*.py ../configs/default_filter_config.json .
+cp -r ../src ../configs/default_filter_config.json .
 docker build -t npm-filter .
+
+rm -r src
+rm default_filter_config.json

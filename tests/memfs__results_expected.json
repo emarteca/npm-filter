@@ -33,8 +33,7 @@
         }
     },
     "metadata": {
-        "package_name": "memfs",
         "repo_link": "https://github.com/streamich/memfs",
-        "num_dependents": 122
+        "repo_commit_SHA": "863f373185837141504c05ed19f7a253232e0905"
     }
 }

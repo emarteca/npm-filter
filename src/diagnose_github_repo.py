@@ -112,6 +112,7 @@ argparser = argparse.ArgumentParser(description="Diagnose github repos, from a v
 argparser.add_argument("--old_QL_input", metavar="rfile", type=str, nargs='?', help="file with list of grepped old QL output")
 argparser.add_argument("--repo_list_file", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links")
 argparser.add_argument("--repo_link", metavar="rlink", type=str, nargs='?', help="single repo link")
+argparser.add_argument("--repo_link_and_SHA", metavar="rlink_and_SHA", type=str, nargs='*', help="single repo link, with optional commit SHA")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
 argparser.add_argument("--output_dir", metavar="output_dir", type=str, nargs='?', help="directory for results to be output to")
 args = argparser.parse_args()
@@ -139,6 +140,11 @@ if args.repo_list_file:
 
 if args.repo_link:
 	repo_links += [args.repo_link]
+
+if args.repo_link_and_SHA:
+	# repo_link_and_SHA can have an optional commit SHA: if so it's space delimited
+	# so we join all the repo_link args into a space-delimited string
+	repo_links += [' '.join(args.repo_link_and_SHA)]
 walker.set_repo_links( repo_links)
 walker.iterate_over_repos()
 	

@@ -4,7 +4,7 @@ items.json
 *__page_data.html
 *__results.json
 local_mount/*
-node_modules/*
+**/node_modules
 
 tests/diagnose-npm-package.py
 tests/TESTING_REPOS/*
@@ -13,3 +13,5 @@ tests/local_mount/*
 
 **/__pycache__/*
 **/.cache/*
+nohup.out
+job.log
