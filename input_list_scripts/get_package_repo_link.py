@@ -8,8 +8,9 @@ import logging
 import argparse
 import time
 import sys
-sys.path.append("..")
-from src import middlewares
+import os
+sys.path.append(os.path.abspath('../src'))
+import middlewares
 
 logging.getLogger('scrapy').propagate = False
 

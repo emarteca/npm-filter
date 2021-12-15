@@ -11,6 +11,8 @@ tests/TESTING_REPOS/*
 tests/default_filter_config.json
 tests/local_mount/*
 
+input_list_scripts/*_deps_repos.txt
+
 **/__pycache__/*
 **/.cache/*
 nohup.out
