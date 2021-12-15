@@ -72,7 +72,9 @@ class RepoWalker():
 		self.IGNORED_COMMANDS = cf_dict.get( "ignored_commands", self.IGNORED_COMMANDS)
 		self.IGNORED_SUBSTRINGS = cf_dict.get( "ignored_substrings", self.IGNORED_SUBSTRINGS)
 		self.RM_AFTER_CLONING = cf_dict.get( "rm_after_cloning", self.RM_AFTER_CLONING)
-		self.SCRIPTS_OVER_CODE = cf_dict.get( "scripts_over_code", self.SCRIPTS_OVER_CODE)
+		# script location is relative to the config file
+		self.SCRIPTS_OVER_CODE = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
+											for p in cf_dict.get( "scripts_over_code", self.SCRIPTS_OVER_CODE)]
 		self.QL_QUERIES = cf_dict.get( "QL_queries", self.QL_QUERIES)
 
 		cf_dict = config_json.get( "dependencies", {})
