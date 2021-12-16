@@ -3,6 +3,11 @@
 projRoot=$1
 projName=$2
 query=$3
+outputDir="."
+
+if [ $# == 4 ]; then
+	outputDir=$4
+fi
 
 # if there is no QLDBs folder yet, create it
 if [ ! -d "QLDBs" ]; then
@@ -18,6 +23,6 @@ if [ ! -d "QLDBs/$projName" ]; then
 fi
 
 # run the query
-codeql query run --database QLDBs/${projName} --output=${projName}_tempOut.bqrs $query.ql
-codeql bqrs decode --format=csv ${projName}_tempOut.bqrs > ${projName}__${query}__results.csv
+codeql query run --database QLDBs/${projName} --output=${projName}_tempOut.bqrs $query
+codeql bqrs decode --format=csv ${projName}_tempOut.bqrs > $outputDir/${projName}__`basename $query .ql`__results.csv
 rm ${projName}_tempOut.bqrs

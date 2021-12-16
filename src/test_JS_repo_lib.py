@@ -65,12 +65,14 @@ def get_dependencies( pkg_json, manager, include_dev_deps):
 
 
 def run_build( manager, pkg_json, crawler):
+	build_debug = ""
+	build_script_list = []
 	retcode = 0
+	if len(crawler.TRACKED_BUILD_COMMANDS) == 0:
+		return(retcode, build_script_list, build_debug)
 	build_scripts = [b for b in pkg_json.get("scripts", {}).keys() if not set([ b.find(b_com) for b_com in crawler.TRACKED_BUILD_COMMANDS]) == {-1}]
 	build_scripts = [b for b in build_scripts if set([b.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
 	build_scripts = [b for b in build_scripts if set([pkg_json.get("scripts", {})[b].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
-	build_debug = ""
-	build_script_list = []
 	for b in build_scripts:
 		build_debug += "Running: " + manager + b
 		error, output, retcode = run_command( manager + b, crawler.BUILD_TIMEOUT)
@@ -82,11 +84,13 @@ def run_build( manager, pkg_json, crawler):
 	return( retcode, build_script_list, build_debug)
 
 def run_tests( manager, pkg_json, crawler):
+	test_json_summary = {}
+	retcode = 0
+	if len(crawler.TRACKED_TEST_COMMANDS) == 0:
+		return(retcode, test_json_summary)
 	test_scripts = [t for t in pkg_json.get("scripts", {}).keys() if not set([ t.find(t_com) for t_com in crawler.TRACKED_TEST_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([pkg_json.get("scripts", {})[t].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
-	test_json_summary = {}
-	retcode = 0
 	for t in test_scripts:
 		print("Running: " + manager + t)
 		error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
@@ -450,7 +454,8 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 			# - create QL database (with name repo_name)
 			# - save the result of the query.ql in repo_name__query__results.csv
 			# - clean up: delete the bqrs file
-			error, output, retcode = run_command( "./runQuery.sh TESTING_REPOS/" + repo_name + " " + repo_name + " " + query)
+			error, output, retcode = run_command( "src/runQuery.sh TESTING_REPOS/" + repo_name + " " 
+													+ repo_name + " " + query + " " + crawler.output_dir)
 			if crawler.VERBOSE_MODE:
 				query_output = output.decode('utf-8') + error.decode('utf-8')
 				ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')

@@ -3,6 +3,9 @@ Tool to find npm packages that meet certain criteria, or to determine metrics fo
 
 Details Forthcoming...
 
+Scripts: location is relative to config file
+Is the same for QL -- give a QL example
+
 ## Running with docker
 To be safe, you should probably run any untrusted code in a sandbox.
 Since the entire point of this tool is to run code from a set of packages/projects you didn't write, we assume most of this code will fall into the untrusted category.
