@@ -13,7 +13,8 @@ fi
 
 docker run --mount type=bind,source=`pwd`/local_mount,destination=/mount \
 		   --volume `pwd`/npm_filter_docker_results:/home/npm-filter/results \
+		   --volume `pwd`/docker_configs:/home/npm-filter/docker_configs\
 		   -w /home/npm-filter \
 		   -it npm-filter:latest \
-		   bash -c "$npm_filter_command --output_dir results"
+		   bash -c "PATH=/home/codeql_home/codeql:$PATH; $npm_filter_command --output_dir results"
 rm -r local_mount

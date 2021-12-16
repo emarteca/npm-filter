@@ -26,6 +26,33 @@ Since the entire point of this tool is to run code from a set of packages/projec
 
 ```
 
+### Docker: where the script needs to read from external files
+
+If you're running `npm-filter` with a custom config file, and running some custom scripts / QL queries over the package code, then you'll need to put these files in a specific folder called `docker_configs`.
+
+Also, anything referenced in the config file must be in this folder, and the locations relative.
+
+For example:
+```
+./runDocker.sh python3 src/diagnose_github_repo.py --repo_list_file docker_configs/repo_links.txt --config docker_configs/custom_config.json
+
+```
+Here we're reading a list of repos from `repo_links.txt` in the `docker_configs` directory.
+There's also a custom config file.
+
+Now, if we wanted to run a script over the code, inside `custom_config.json` we'd have:
+```
+"meta_info": {
+		"scripts_over_code": [ "myscript.sh" ],
+		"QL_queries": [ "myquery.ql" ]
+	}
+
+```
+And, `myscript.sh` and `myquery.ql` need to also be in `docker_configs` directory.
+
+Note that running outside of docker you can have different paths to the scripts/queries, but for running in docker they all need to be in the `docker_configs` directory.
+
+
 ### Results
 Results from running the docker will be output to a `npm_filter_docker_results` directory generated in the directory you run the container in.
 
