@@ -175,7 +175,7 @@ Results from running the docker will be output to a `npm_filter_docker_results` 
 
 #### Parallel execution: also in docker
 ```
-/runParallelGitReposDocker.sh repo_link_file
+./runParallelGitReposDocker.sh repo_link_file
 ```
 Results are in `npm_filter_parallel_docker_results`.
 Note that it's execution in parallel in _one_ docker container, and _not_ parallel docker containers.
@@ -201,9 +201,6 @@ To do so, you'll need to have the following installed:
 
 ### Running a CodeQL query
 
-### Specifying commands to ignore
-
-## Infrastructures tracked
 
 ## Common output processing
 
