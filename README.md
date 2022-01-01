@@ -1,19 +1,136 @@
-# npm-filter
-Tool to find npm packages that meet certain criteria, or to determine metrics for specific packages.
+# npm-filter 
+This tool takes a user-specified set of JavaScript/TypeScript packages, and installs/builds them. \
+The primary use case is to automatically determine:
+* what the test commands are
+* what testing infrastructure is used
+* how many passing and failing tests there are
 
-Details Forthcoming...
+Users can also specify:
+* custom scripts, or
+* [CodeQL](https://codeql.github.com/) static analyses
+to be run over the source code of the package.
 
-Scripts: location is relative to config file
-Is the same for QL -- give a QL example
+## Usage options
+This tool can either take packages specified as GitHub repo links, or as npm packages.
 
-## Running with docker
+### Running over GitHub repo links
+To run the tool over GitHub repo links, use the [`diagnose_github_repo.py` script](https://github.com/emarteca/npm-filter/blob/master/src/diagnose_github_repo.py), called as follows:
+```
+python src/diagnose_github_repo.py 
+			[--repo_list_file [rlistfile]] 
+			[--repo_link [rlink]] 
+			[--repo_link_and_SHA [rlink_and_SHA]] 
+			[--config [config_file]]
+                        [--output_dir [output_dir]]
+```
+
+#### Arguments
+All arguments are optional, although the tool will not do anything if no repo links are specified. So effectively, at least one of the three repo-link-specifying arguments must be specified for the tool to run.
+* `--repo_list_file [rlistfile]`: a file containing a list of GitHub repo links to be analyzed. \
+	Each line of the input file must specify one repo link, with an optional whitespace delimited commit SHA to check the repo out at.
+	For example, a valid input file could be:
+	```
+	https://github.com/expressjs/body-parser 	d0a214b3beded8a9cd2dcb51d355f92c9ead81d4
+	https://github.com/streamich/memfs
+	```
+* `--repo_link [rlink]`: a link to a single GitHub repo to be analyzed, e.g., `https://github.com/expressjs/body-parser`
+* `--repo_link_and_SHA [rlink_and_SHA]`: a link to a single GitHub repo to be analyzed, followed by a space-delimited commit SHA to analyze the repo at, e.g., `https://github.com/expressjs/body-parser 	d0a214b3beded8a9cd2dcb51d355f92c9ead81d4`
+* `--config [config_file]`: path to a configuration file for the tool (config options explained in [the config file section](#configuration-file)) 
+* `--output_dir [output_dir]`: path to a directory in which to output the tool's results files (shape of results are explained in [the output section](#output))
+
+### Running over npm packages
+To run the tool over npm packages, use the [`diagnose_npm_package.py` script](https://github.com/emarteca/npm-filter/blob/master/src/diagnose_npm_package.py), called as follows:
+```
+python src/diagnose_npm_package.py
+			--packages [list_of_packages]
+			[--config [config_file]]
+			[--html [html_file]]
+			[--output_dir [output_dir]]
+```
+The back end of the npm package analyzer is a web scraper: given the name of an npm package, it finds the associated repository link on the npm page so that it can analyze the source code. This tool has some custom middleware to get around the rate limiting on the npm site, but if you are analyzing a large number of packages you will still see a significant performance hit compared to running on the GitHub repos directly. 
+
+#### Arguments
+* `--packages [list_of_packages]`: list of npm packages to analyze. This is a required argument, and at least one package must be passed.
+* `--config [config_file]`: path to a configuration file for the tool (config options explained in [the config file section](#configuration-file)) 
+* `--html [html_file]`: path to an html file that represents the npm page for the package that is specified to be analyzed. This option only works for one package, so if you want to use this option on multiple packages you'll need to call the tool in sequence for each one. 
+* `--output_dir [output_dir]`: path to a directory in which to output the tool's results files (shape of results are explained in [the output section](#output)) 
+
+### Configuration file
+If you want to customize the behaviour of the tool, you can provide a custom configuration file. All fields in the configuration file are optional -- if not provided, defaults will be used. The [README in the configuration file directory](https://github.com/emarteca/npm-filter/tree/master/configs) goes through all the available options.
+
+### Output
+The result of all the package diagnostics are output to a JSON file. The layout of the output is similar to that of the configuration file. 
+The output is organized into the following top-level fields in the JSON, in order:
+* `installation`: an object listing the installer command for the package, and/or the presence of any errors in installation that prevent the analysis from continuing
+* `build`: an object listing the build commands (in order, and if any) for the package, and/or the presence of any errors in the build commands that prevent the analysis from continuing
+* `testing`: an object with fields for each of the test commands in the package. The test commands are those specified in the configuration file. \
+	For each test command, the tool lists: 
+	* if it is a linter or a coverage tool, and if so what tool (`test_linters`, `test_coverage_tools`)
+	* if it's not a linter or coverage tool, what testing infrastructure is being used (`test_infras`)
+	* whether or not it runs new user tests (this is false in test commands that only call other test commands, or test commands that don't run any tests explicitly (e.g., linters, coverage tools) (`RUNS_NEW_USER_TESTS`)
+	* whether or not it timed out (`timed_out`)
+	* if it does run new user tests, then the number of passing and number of failing tests (`num_passing`, `num_failing`)
+* `scripts_over_code`: an object with fields for each of the scripts run over the package source code. For each script, the tool lists its output and if there was an error.
+* `QL_queries`: an object with fields for each of the QL queries run over the package source code. For each script, the tool lists the output (if running in verbose mode), and if there was an error.
+* `metadata`: an object with fields for some metadata about the package: repository link, commit SHA if one was specified
+
+For example, the output of running `diagnose_github_repo` on `https://github.com/expressjs/body-parser` at commit SHA `d0a214b3beded8a9cd2dcb51d355f92c9ead81d4` with the default configuration file is as follows:
+```
+{
+    "installation": {
+        "installer_command": "npm install"
+    },
+    "build": {
+        "build_script_list": []
+    },
+    "testing": {
+        "lint": {
+            "test_linters": [
+                "eslint -- linter"
+            ],
+            "RUNS_NEW_USER_TESTS": false,
+            "timed_out": false
+        },
+        "test": {
+            "num_passing": 231,
+            "num_failing": 0,
+            "test_infras": [
+                "mocha"
+            ],
+            "timed_out": false
+        },
+        "test-ci": {
+            "test_coverage_tools": [
+                "nyc -- coverage testing"
+            ],
+            "RUNS_NEW_USER_TESTS": false,
+            "timed_out": false
+        },
+        "test-cov": {
+            "test_coverage_tools": [
+                "nyc -- coverage testing"
+            ],
+            "RUNS_NEW_USER_TESTS": false,
+            "timed_out": false
+        }
+    },
+    "scripts_over_code": {},
+    "QL_queries": {},
+    "metadata": {
+        "repo_link": "https://github.com/expressjs/body-parser",
+        "repo_commit_SHA": "d0a214b3beded8a9cd2dcb51d355f92c9ead81d4"
+    }
+}
+```
+
+### Running with docker
 To be safe, you should probably run any untrusted code in a sandbox.
 Since the entire point of this tool is to run code from a set of packages/projects you didn't write, we assume most of this code will fall into the untrusted category.
 
-### Building docker
+#### Building docker
 `docker build -t npm-filter .`
 
-### Sandboxed usage
+#### Sandboxed usage
 ```
 # general use
 ./runDocker.sh [regular command to run npm-filter]
@@ -26,7 +143,7 @@ Since the entire point of this tool is to run code from a set of packages/projec
 
 ```
 
-### Docker: where the script needs to read from external files
+#### Docker: where the script needs to read from external files
 
 If you're running `npm-filter` with a custom config file, and running some custom scripts / QL queries over the package code, then you'll need to put these files in a specific folder called `docker_configs`.
 
@@ -53,17 +170,17 @@ And, `myscript.sh` and `myquery.ql` need to also be in `docker_configs` director
 Note that running outside of docker you can have different paths to the scripts/queries, but for running in docker they all need to be in the `docker_configs` directory.
 
 
-### Results
+#### Results
 Results from running the docker will be output to a `npm_filter_docker_results` directory generated in the directory you run the container in.
 
-### Parallel execution: also in docker
+#### Parallel execution: also in docker
 ```
 /runParallelGitReposDocker.sh repo_link_file
 ```
 Results are in `npm_filter_parallel_docker_results`.
 Note that it's execution in parallel in _one_ docker container, and _not_ parallel docker containers.
 
-## Running locally
+### Running locally
 You can also run this locally on your machine.
 To do so, you'll need to have the following installed:
 * python3 (running as python), with bs4 and scrapy libraries
@@ -72,16 +189,26 @@ To do so, you'll need to have the following installed:
 * yarn
 * node
 
-### Usage
-`python src/diagnose-npm-package.py --packages p1 [p2, ...] [--config config_file] [--output_dir dir_to_output_results_to]`
+
+## Example uses
 
 
-## TODOs
-Things to still get working:
-* support for tracking lab and jasmine 
-* testing -- make sure it's robust and can deal with potential errors in running packages
-* automated scraping for packages (instead of user-specified list)
+### Specifying packages as github repos
 
-## Data Analysis
-* overall meta analysis: about number of tests in a package, percentage of totally untested packages, percentage of failing packages, etc.
-* scraping for particular characteristics (filter for num deps, num passing tests, no failing tests, etc)
+### Specifying packages via npm package names
+
+### Running a custom script
+
+### Running a CodeQL query
+
+### Specifying commands to ignore
+
+## Infrastructures tracked
+
+## Common output processing
+
+Users can specify their 
+
+Scripts: location is relative to config file
+Is the same for QL -- give a QL example
+
