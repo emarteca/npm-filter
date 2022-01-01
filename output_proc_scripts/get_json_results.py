@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 # simple, unrefined script for parsing npm-filter output files
 # for the current directory, get all files named *__results.json
@@ -17,7 +18,7 @@ JSON_filter = {
 	},
 	"installation": { 
 		"ERROR": True 
-	}
+	},
 }
 
 # input to the function is a JSON of undesirable elements
@@ -46,18 +47,24 @@ def get_passing_test_commands(json_check, min_passing=1):
 		passing_commands += [test_com]
 	return( passing_commands)
 
+output_proc_dir = "."
+if len(sys.argv) == 2:
+	output_proc_dir = sys.argv[1]
+else:
+	print("No output directory specified: looking at current directory")
 
 # get all relevant files
-all_files = [ fname for fname in os.listdir() if fname.find("__results.json") != -1]
+all_files = [ output_proc_dir + "/" + fname for fname in os.listdir(output_proc_dir) if fname.find("__results.json") != -1]
 passing_files = []
 for file in all_files:
 	with open(file) as f:
 		json_check = json.load(f)
 	proj_name = file[ : file.index("__results.json")]
 	if json_contains_issues( json_check, JSON_filter):
-		print(proj_name + " has setup/install errors")
+		# print(proj_name + " has setup/install errors")
 		continue
 	passing_commands = get_passing_test_commands( json_check)
 	if len(passing_commands) > 0:
 		passing_files += [(file, passing_commands)]
-print(passing_files)
+print("\nFollowing is a list of all projects with commands meeting the criteria, paired with these commands")
+print("\n".join([str(pf) for pf in passing_files]))

@@ -112,7 +112,6 @@ class RepoWalker():
 
 
 argparser = argparse.ArgumentParser(description="Diagnose github repos, from a variety of sources")
-argparser.add_argument("--old_QL_input", metavar="rfile", type=str, nargs='?', help="file with list of grepped old QL output")
 argparser.add_argument("--repo_list_file", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links")
 argparser.add_argument("--repo_link", metavar="rlink", type=str, nargs='?', help="single repo link")
 argparser.add_argument("--repo_link_and_SHA", metavar="rlink_and_SHA", type=str, nargs='*', help="single repo link, with optional commit SHA")
@@ -127,12 +126,6 @@ output_dir = args.output_dir if args.output_dir else "."
 walker = RepoWalker(config_file=config, output_dir=output_dir)
 
 repo_links = []
-if args.old_QL_input:
-	try:
-		repo_links += GetLinks.from_grepped_old_QL_output(args.old_QL_input, walker.QL_CUTOFF)
-	except:
-		print("Error reading old QL input file: " + args.old_QL_input + " --- no repos to try")
-		repo_links += []
 if args.repo_list_file:
 	try:
 		repo_links += GetLinks.from_list_of_repos(args.repo_list_file)

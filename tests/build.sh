@@ -20,7 +20,6 @@ pip3 install --upgrade setuptools setuptools_rust wheel
 pip3 install scrapy bs4
 
 rm build.sh
-rm runDocker.sh
 
 mkdir TESTING_REPOS
 
