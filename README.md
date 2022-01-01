@@ -197,22 +197,44 @@ To do so, you'll need to have the following installed:
 
 
 ## Example uses
-
+Examples of common usages:
 
 ### Specifying packages as github repos
+```
+# running on a single repo
+python src/diagnose_github_repo.py --repo_link https://github.com/expressjs/body-parser
+
+# running on a single repo with a custom config file
+python src/diagnose_github_repo.py --repo_link https://github.com/expressjs/body-parser --config my_config.json
+
+# running on a single repo at a specific SHA
+python3 src/diagnose_github_repo.py --repo_link_and_SHA https://github.com/streamich/memfs 863f373185837141504c05ed19f7a253232e0905
+
+# running on one repo from a link, and a list of repos from a file
+python src/diagnose_github_repo.py --repo_link https://github.com/expressjs/body-parser --repo_list_file repo_links.txt
+```
 
 ### Specifying packages via npm package names
+```
+# running on a single package
+python src/diagnose_npm_package.py --packages body-parser
 
-### Running a custom script
+# running on multiple packages
+python src/diagnose_npm_package.py --packages body-parser memfs fs-extra
 
-### Running a CodeQL query
+# running on multiple packages with a custom output directory (the parent directory)
+python src/diagnose_npm_package.py --packages body-parser memfs --output_dir ..
+```
 
+## Common input generation
+
+npm-filter takes as input a list of package names or repositories to run over. The [`input_list_scripts` directory](https://github.com/emarteca/npm-filter/tree/master/input_list_scripts) contains scripts for common input generation strategies.
 
 ## Common output processing
 
-Users can specify their LINK TO THE README
+npm-filter produces JSON results files for each package or repo that is analyzed. The [`output_proc_scripts` directory](https://github.com/emarteca/npm-filter/tree/master/output_proc_scripts) constains scripts for common output processing.
 
 ## Running tests
 
-LINK TO TEST README (also, delete the current runDocker.sh in the test dir)
+Instructions on setting up and running the npm-filter test suite are included [in the `tests` directory](https://github.com/emarteca/npm-filter/blob/master/tests).
 
