@@ -61,13 +61,16 @@ If you want to customize the behaviour of the tool, you can provide a custom con
 ### Output
 The result of all the package diagnostics are output to a JSON file. The layout of the output is similar to that of the configuration file. 
 The output is organized into the following top-level fields in the JSON, in order:
+* `setup`: an object with fields that are initialized in the presence of different setup errors that prevent the source code from being properly set up. For example, if the repo link is invalid (or if it can't be found on an npm package page), if there is an error checking out the specified commit, or if there is an error loading the `package.json`.
 * `installation`: an object listing the installer command for the package, and/or the presence of any errors in installation that prevent the analysis from continuing
+* `dependencies`: an object listing the dependencies of the package, if the configuration specified that they should be tracked
 * `build`: an object listing the build commands (in order, and if any) for the package, and/or the presence of any errors in the build commands that prevent the analysis from continuing
 * `testing`: an object with fields for each of the test commands in the package. The test commands are those specified in the configuration file. \
 	For each test command, the tool lists: 
 	* if it is a linter or a coverage tool, and if so what tool (`test_linters`, `test_coverage_tools`)
 	* if it's not a linter or coverage tool, what testing infrastructure is being used (`test_infras`)
 	* whether or not it runs new user tests (this is false in test commands that only call other test commands, or test commands that don't run any tests explicitly (e.g., linters, coverage tools) (`RUNS_NEW_USER_TESTS`)
+	* if it runs other test commands, then a list of these commands are included (`nested_test_commands`)
 	* whether or not it timed out (`timed_out`)
 	* if it does run new user tests, then the number of passing and number of failing tests (`num_passing`, `num_failing`)
 * `scripts_over_code`: an object with fields for each of the scripts run over the package source code. For each script, the tool lists its output and if there was an error.
@@ -122,6 +125,9 @@ For example, the output of running `diagnose_github_repo` on `https://github.com
     }
 }
 ```
+
+#### QL Query output
+The output of each QL query is saved to a CSV file in the same directory as the JSON output, named `[package name]__[query name]__results.csv`. For example, if you run a query `myQuery.ql` over `body-parser`, the query results file will be `body-parser__myQuery__results.csv`.
 
 ### Running with docker
 To be safe, you should probably run any untrusted code in a sandbox.
@@ -204,8 +210,9 @@ To do so, you'll need to have the following installed:
 
 ## Common output processing
 
-Users can specify their 
+Users can specify their LINK TO THE README
 
-Scripts: location is relative to config file
-Is the same for QL -- give a QL example
+## Running tests
+
+LINK TO TEST README (also, delete the current runDocker.sh in the test dir)
 
