@@ -15,6 +15,21 @@ unzip codeql-linux64.zip
 # clone stable version
 git clone https://github.com/github/codeql.git --branch v1.26.0 codeql-repo
 
+apt -y install curl dirmngr apt-transport-https lsb-release ca-certificates gnupg build-essential
+curl -sL https://deb.nodesource.com/setup_12.x | bash -
+apt-get update
+
+curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
+echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
+apt-get update
+
+curl https://sh.rustup.rs -sSf | sh -s -- -y
+source $HOME/.cargo/env
+
+pip3 install --upgrade setuptools setuptools_rust wheel
+
+npm install -g jest mocha tap ava nyc yarn
+
 echo "export PATH=/home/codeql_home/codeql:$PATH" >> /root/.bashrc
 echo "alias python=python3" >> /root/.bashrc
 echo "alias ipython=ipython3" >> /root/.bashrc
