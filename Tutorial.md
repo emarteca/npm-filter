@@ -1,16 +1,12 @@
 ## Tutorial: example walk-through
 This is a simple tutorial giving an example walkthrough of npm-filter usage, one basic and one advanced.
 We assume you have `docker` installed.
+This tutorial will run the latest version of npm-filter [on DockerHub](https://hub.docker.com/r/emarteca/npm-filter).
 
 ### Setup
 ```
 git clone https://github.com/emarteca/npm-filter.git
 cd npm-filter
-```
-
-### Docker build
-```
-docker build -t npm-filter .
 ```
 
 ### Usage example 1
