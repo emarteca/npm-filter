@@ -132,8 +132,11 @@ The output of each QL query is saved to a CSV file in the same directory as the 
 ### Running with docker
 To be safe, you should probably run any untrusted code in a sandbox.
 Since the entire point of this tool is to run code from a set of packages/projects you didn't write, we assume most of this code will fall into the untrusted category.
+We host the docker container [on DockerHub](https://hub.docker.com/r/emarteca/npm-filter); if you edit the package source code and want to run your version in a docker container, we have included the docker build command below.
 
-#### Building docker
+#### Building docker (if you've updated the npm-filter source code)
+Note: you don't need to do this if you're using npm-filter out of the box. 
+In that case, you'll pull directly from DockerHub.
 `docker build -t npm-filter .`
 
 #### Sandboxed usage
