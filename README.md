@@ -137,7 +137,9 @@ We host the docker container [on DockerHub](https://hub.docker.com/r/emarteca/np
 #### Building docker (if you've updated the npm-filter source code)
 Note: you don't need to do this if you're using npm-filter out of the box. 
 In that case, you'll pull directly from DockerHub.
-`docker build -t npm-filter .`
+```
+docker build -t npm-filter .
+```
 
 You'll also need to edit the `runDocker.sh` script and **remove the username `emarteca` before `npm-filter:latest` in the [`docker run` command](https://github.com/emarteca/npm-filter/blob/master/runDocker.sh#L18)**.
 
