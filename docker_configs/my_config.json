@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "track_deps": true,
+    "include_dev_deps": false
+  }
+}
