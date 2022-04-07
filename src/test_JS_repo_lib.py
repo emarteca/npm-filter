@@ -24,10 +24,7 @@ def run_installation(pkg_json, crawler):
     installation_debug = "Running Installation\n"
     manager = ""
 
-    # if there is a yarn lock file use yarn (I don't think it's correct,
-    # please try this repo: https://github.com/asabaylus/react-command-palette
-    # It has yarn.lock, but it seems that we can only use "npm install" to install.
-    # I tried "yarn" for this repo to install, some errors happened, such as no "yarn" folder.)
+    # if there is a yarn lock file use yarn
     # if there is a package-lock, use npm
     # if there is neither, try npm first, and if that fails use yarn
     if os.path.exists("yarn.lock"):
