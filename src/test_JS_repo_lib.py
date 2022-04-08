@@ -43,6 +43,23 @@ def run_installation( pkg_json, crawler):
 			error, output, retcode = run_command( installation_command, crawler.INSTALL_TIMEOUT)
 	return( (manager, retcode, installation_command, installation_debug))
 
+def get_deps():
+    deps = []
+    for d in os.listdir("node_modules"):
+	# if a folder's name starts with '.', ignore it.
+        if d[0] == '.':
+            continue
+	# if a folder's name starts with '@', count subfolders in it.
+        if d[0] == '@':
+            subFolder = os.path.join("node_modules/", d)
+            for f in os.listdir(subFolder):
+                deps.append(d + '/' + f)
+
+        else:
+            deps.append(d)
+
+    return deps
+
 # note: no timeout option for get_dependencies, so "None" is passed as a default timeout argument to run_command
 def get_dependencies( pkg_json, manager, include_dev_deps):
 	if pkg_json.get("devDependencies", None) and not include_dev_deps:
@@ -52,15 +69,15 @@ def get_dependencies( pkg_json, manager, include_dev_deps):
 		pkg_json["devDependencies"] = {}
 		with open("package.json", 'w') as f:
 			json.dump( pkg_json, f)
-		run_command( manager + (" install" if manager == "npm run " else ""))
+		run_command( "npm install" if manager == "npm run " else manager)
 		pkg_json["devDependencies"] = dev_deps
 	# get the list of deps, excluding hidden directories
-	deps = [] if not os.path.isdir("node_modules") else [d for d in os.listdir("node_modules") if not d[0] == "."] 
+	deps = [] if not os.path.isdir("node_modules") else get_deps()
 	# then, reset the deps (if required)
 	if pkg_json.get("devDependencies", None) and not include_dev_deps:
 		run_command( "rm -r node_modules")
 		run_command( "mv TEMP_package.json_TEMP package.json")
-		run_command( manager + (" install" if manager == "npm run " else ""))
+		run_command( "npm install" if manager == "npm run " else manager)
 	return( deps)
 
 
