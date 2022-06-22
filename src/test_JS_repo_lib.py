@@ -338,15 +338,21 @@ def on_diagnose_exit( json_out, crawler, cur_dir, repo_name):
 		os.chdir( cur_dir)
 		if crawler.RM_AFTER_CLONING:
 			run_command( "rm -rf TESTING_REPOS/" + repo_name)
+			run_command( "rm -rf QLDBs/" + repo_name)
 	return( json_out)
+
+def get_author_from_link(link):
+	return( link.split()[0].split("/")[-2])
 
 def diagnose_package( repo_link, crawler, commit_SHA=None):
 	json_out = {}
 
 	repo_name = ""
+	author_name = ""
 	cur_dir = os.getcwd()
 	try: 
 		repo_name = repo_link[len(repo_link) - (repo_link[::-1].index("/")):]
+		author_name = get_author_from_link(repo_link)
 	except: 
 		print("ERROR cloning the repo -- malformed repo link. Exiting now.")
 		json_out["setup"] = {}
@@ -455,7 +461,7 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 			# - save the result of the query.ql in repo_name__query__results.csv
 			# - clean up: delete the bqrs file
 			error, output, retcode = run_command( "src/runQuery.sh TESTING_REPOS/" + repo_name + " " 
-													+ repo_name + " " + query + " " + crawler.output_dir)
+													+ repo_name + " " + author_name + " " + query + " " + crawler.output_dir)
 			if crawler.VERBOSE_MODE:
 				query_output = output.decode('utf-8') + error.decode('utf-8')
 				ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')

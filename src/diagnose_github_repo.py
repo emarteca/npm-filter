@@ -13,6 +13,9 @@ def get_name_from_link(link):
 	# to make sure we ignore the optional commit SHA
 	return( link.split()[0].split("/")[-1])
 
+def get_author_from_link(link):
+	return( link.split()[0].split("/")[-2])
+
 def get_repo_and_SHA_from_repo_link(repo):
 	split_res = repo.split()
 	commit_SHA = None
@@ -101,13 +104,14 @@ class RepoWalker():
 		for repo in self.repo_links:
 			[repo_link, commit_SHA] = get_repo_and_SHA_from_repo_link(repo)
 			package_name = get_name_from_link( repo_link)
+			author_name = get_author_from_link( repo_link)
 			json_results = diagnose_package( repo_link, self, commit_SHA)
 			json_results["metadata"] = {}
 			json_results["metadata"]["repo_link"] = repo_link
 			# if not None
 			if commit_SHA:
 				json_results["metadata"]["repo_commit_SHA"] = commit_SHA
-			with open(self.output_dir + "/" + package_name + '__results.json', 'w') as f:
+			with open(self.output_dir + "/" + author_name + '__' + package_name + '__results.json', 'w') as f:
 				json.dump( json_results, f, indent=4)
 
 

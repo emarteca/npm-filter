@@ -2,11 +2,12 @@
 
 projRoot=$1
 projName=$2
-query=$3
+authorName=$3
+query=$4
 outputDir="."
 
-if [ $# == 4 ]; then
-	outputDir=$4
+if [ $# == 5 ]; then
+	outputDir=$5
 fi
 
 # if there is no QLDBs folder yet, create it
@@ -24,5 +25,5 @@ fi
 
 # run the query
 codeql query run --database QLDBs/${projName} --output=${projName}_tempOut.bqrs $query
-codeql bqrs decode --format=csv ${projName}_tempOut.bqrs > $outputDir/${projName}__`basename $query .ql`__results.csv
+codeql bqrs decode --format=csv ${projName}_tempOut.bqrs > $outputDir/${authorName}__${projName}__`basename $query .ql`__results.csv
 rm ${projName}_tempOut.bqrs
