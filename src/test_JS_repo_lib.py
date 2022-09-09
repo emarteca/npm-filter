@@ -368,20 +368,24 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	# first step: cloning the package's repo
 
 	# if the repo already exists, dont clone it
-	if not os.path.isdir( repo_name):
+	repo_dir_name = repo_name
+	if commit_SHA:
+		repo_dir_name = repo_dir_name + "-" + commit_SHA
+
+	if not os.path.isdir( repo_dir_name):
 		print( "Cloning package repository")
-		error, output, retcode = run_command( "git clone " + repo_link)
+		error, output, retcode = run_command( "git clone " + repo_link + " " + repo_dir_name)
 		if retcode != 0:
 			print("ERROR cloning the repo. Exiting now.")
 			json_out["setup"] = {}
 			json_out["setup"]["repo_cloning_ERROR"] = True
-			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_dir_name))
 	else:
-		print( "Package repository already exists. Using existing directory: " + repo_name)
+		print( "Package repository already exists. Using existing directory: " + repo_dir_name)
 	
 
 	# move into the repo and begin testing
-	os.chdir( repo_name)
+	os.chdir( repo_dir_name)
 
 	# checkout the specified commit if needed
 	if commit_SHA:
@@ -391,7 +395,7 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 			print("ERROR checking out specified commit. Exiting now.")
 			json_out["setup"] = {}
 			json_out["setup"]["repo_commit_checkout_ERROR"] = True
-			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_dir_name))
 	
 
 	pkg_json = None
@@ -402,7 +406,7 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		print("ERROR reading the package.json. Exiting now.")
 		json_out["setup"] = {}
 		json_out["setup"]["pkg_json_ERROR"] = True
-		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_dir_name))
 
 	# first, the install
 	(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
@@ -413,7 +417,7 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	if retcode != 0:
 		print("ERROR -- installation failed")
 		json_out["installation"]["ERROR"] = True
-		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_dir_name))
 
 	if crawler.COMPUTE_DEP_LISTS:
 		print("Getting dependencies")
@@ -460,8 +464,8 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 			# - create QL database (with name repo_name)
 			# - save the result of the query.ql in repo_name__query__results.csv
 			# - clean up: delete the bqrs file
-			error, output, retcode = run_command( "src/runQuery.sh TESTING_REPOS/" + repo_name + " " 
-													+ repo_name + " " + author_name + " " + query + " " + crawler.output_dir)
+			error, output, retcode = run_command( "src/runQuery.sh TESTING_REPOS/" + repo_dir_name + " " 
+													+ repo_dir_name + " " + author_name + " " + query + " " + crawler.output_dir)
 			if crawler.VERBOSE_MODE:
 				query_output = output.decode('utf-8') + error.decode('utf-8')
 				ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
@@ -470,8 +474,8 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 			if retcode != 0:
 				json_out["QL_queries"][query]["ERROR"] = True
 		if crawler.RM_AFTER_CLONING:
-			run_command( "rm -rf QLDBs/" + repo_name)
-		os.chdir( "TESTING_REPOS/" + repo_name)
+			run_command( "rm -rf QLDBs/" + repo_dir_name)
+		os.chdir( "TESTING_REPOS/" + repo_dir_name)
 
 
-	return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	return( on_diagnose_exit( json_out, crawler, cur_dir, repo_dir_name))

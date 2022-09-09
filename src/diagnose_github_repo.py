@@ -6,6 +6,18 @@ import argparse
 from test_JS_repo_lib import *
 import get_repo_links as GetLinks
 
+# TODO ## and notes ############
+#  ... for supporting pairwise commit analysis 
+#
+
+# 1. git rev-list --branches <...> will yield all of the commits for a given branch
+#    so, we can look at them pairwise
+#    
+
+#
+#
+################################
+
 # expecting links to look like :
 # https://github.com/user/reponame [optional commit SHA]
 def get_name_from_link(link): 
@@ -104,6 +116,8 @@ class RepoWalker():
 		for repo in self.repo_links:
 			[repo_link, commit_SHA] = get_repo_and_SHA_from_repo_link(repo)
 			package_name = get_name_from_link( repo_link)
+			if commit_SHA:
+				package_name += '-' + commit_SHA
 			author_name = get_author_from_link( repo_link)
 			json_results = diagnose_package( repo_link, self, commit_SHA)
 			json_results["metadata"] = {}
@@ -117,6 +131,7 @@ class RepoWalker():
 
 argparser = argparse.ArgumentParser(description="Diagnose github repos, from a variety of sources")
 argparser.add_argument("--repo_list_file", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links")
+argparser.add_argument("--repo_list_file_with_SHAs", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links + commit SHAs (i.e., lines in file are: repo_link commit_SHA)")
 argparser.add_argument("--repo_link", metavar="rlink", type=str, nargs='?', help="single repo link")
 argparser.add_argument("--repo_link_and_SHA", metavar="rlink_and_SHA", type=str, nargs='*', help="single repo link, with optional commit SHA")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
@@ -130,13 +145,23 @@ output_dir = args.output_dir if args.output_dir else "."
 walker = RepoWalker(config_file=config, output_dir=output_dir)
 
 repo_links = []
+
+# Note: Right now, this is the same as the case for repo_list_file.
+#       I figured they might be different, but if they continue to be the same,
+#       we can just fold them together.
+if args.repo_list_file_with_SHAs:
+	try:
+		repo_links += GetLinks.from_list_of_repos(args.repo_list_file_with_SHAs)
+	except:
+		print("Error reading list of repos file: " + args.repo_list_file + " --- no repos to try")
+		repo_links += []
+
 if args.repo_list_file:
 	try:
 		repo_links += GetLinks.from_list_of_repos(args.repo_list_file)
 	except:
 		print("Error reading list of repos file: " + args.repo_list_file + " --- no repos to try")
 		repo_links += []
-
 
 if args.repo_link:
 	repo_links += [args.repo_link]
@@ -145,6 +170,7 @@ if args.repo_link_and_SHA:
 	# repo_link_and_SHA can have an optional commit SHA: if so it's space delimited
 	# so we join all the repo_link args into a space-delimited string
 	repo_links += [' '.join(args.repo_link_and_SHA)]
+
 walker.set_repo_links( repo_links)
 walker.iterate_over_repos()
 	
