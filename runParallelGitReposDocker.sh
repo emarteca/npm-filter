@@ -21,7 +21,7 @@ cp $config_file npm_filter_parallel_docker_results/config.json
 docker run --mount type=bind,source=`pwd`/local_mount,destination=/mount \
                    --volume `pwd`/npm_filter_parallel_docker_results:/home/npm-filter/results \
                    -w /home/npm-filter \
-                   -it npm-filter:latest \
+                   -it emarteca/npm-filter:latest \
                    bash -c "nohup parallel -j 20 -a results/repo_links.txt --timeout 600 --joblog job.log python3 src/diagnose_github_repo.py --repo_link {} --config results/config.json --output_dir results"
 
 rm -r local_mount
