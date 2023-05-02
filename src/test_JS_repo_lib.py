@@ -416,37 +416,56 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 
 	# first, the install
-	(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
-	json_out["installation"] = {}
-	json_out["installation"]["installer_command"] = installer_command
-	if crawler.VERBOSE_MODE:
-		json_out["installation"]["installer_debug"] = installer_debug
-	if retcode != 0:
-		print("ERROR -- installation failed")
-		json_out["installation"]["ERROR"] = True
-		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	manager = ""
+	if crawler.DO_INSTALL:
+		(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
+		json_out["installation"] = {}
+		json_out["installation"]["installer_command"] = installer_command
+		if crawler.VERBOSE_MODE:
+			json_out["installation"]["installer_debug"] = installer_debug
+		if retcode != 0:
+			print("ERROR -- installation failed")
+			json_out["installation"]["ERROR"] = True
+			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	else:
+		json_out["installation"] = { "do_install": False }
 
 	if crawler.COMPUTE_DEP_LISTS:
-		print("Getting dependencies")
-		dep_list = get_dependencies( pkg_json, manager, crawler.INCLUDE_DEV_DEPS)
 		json_out["dependencies"] = {}
-		json_out["dependencies"]["dep_list"] = dep_list
-		json_out["dependencies"]["includes_dev_deps"] = crawler.INCLUDE_DEV_DEPS
+		if not crawler.DO_INSTALL:
+			print("Can't get dependencies without installing (do_install: false) -- skipping")
+		else:
+			print("Getting dependencies")
+			dep_list = get_dependencies( pkg_json, manager, crawler.INCLUDE_DEV_DEPS)
+			json_out["dependencies"]["dep_list"] = dep_list
+			json_out["dependencies"]["includes_dev_deps"] = crawler.INCLUDE_DEV_DEPS
 
 	# now, proceed with the build
-	(retcode, build_script_list, build_debug) = run_build( manager, pkg_json, crawler)
-	json_out["build"] = {}
-	json_out["build"]["build_script_list"] = build_script_list
-	if crawler.VERBOSE_MODE:
-		json_out["build"]["build_debug"] = build_debug
-	if retcode != 0:
-		print("ERROR -- build failed. Continuing anyway...")
-		json_out["build"]["ERROR"] = True
+	if crawler.TRACK_BUILD:
+		json_out["build"] = {}
+		if not crawler.DO_INSTALL:
+			print("Can't do build without installing (do_install: false) -- skipping")
+		else:
+			(retcode, build_script_list, build_debug) = run_build( manager, pkg_json, crawler)
+			json_out["build"]["build_script_list"] = build_script_list
+			if crawler.VERBOSE_MODE:
+				json_out["build"]["build_debug"] = build_debug
+			if retcode != 0:
+				print("ERROR -- build failed. Continuing anyway...")
+				json_out["build"]["ERROR"] = True
+	else:
+		json_out["build"] = { "track_build": False }
 
 	# then, the testing
 	if crawler.TRACK_TESTS:
-		(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler)
-		json_out["testing"] = test_json_summary
+		json_out["testing"] = {}
+		if not crawler.DO_INSTALL:
+			print("Can't run tests without installing (do_install: false) -- skipping")
+		else:
+			(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler)
+			json_out["testing"] = test_json_summary
+	else:
+		json_out["testing"] = { "track_tests": False }
 
 	if crawler.SCRIPTS_OVER_CODE != []:
 		json_out["scripts_over_code"] = {}

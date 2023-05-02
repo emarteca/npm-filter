@@ -1,12 +1,14 @@
 {
 	"install": {
-		"timeout": 1000
+		"timeout": 1000,
+		"do_install": true
 	},
 	"dependencies": {
 		"track_deps": false,
 		"include_dev_deps": false
 	},
 	"build": {
+		"track_build": true,
 		"tracked_build_commands": ["build", "compile", "init"],
 		"timeout": 1000
 	},
