@@ -28,8 +28,10 @@ class RepoWalker():
 	SCRIPTS_OVER_CODE = []
 	QL_QUERIES = []
 
+	DO_INSTALL = True
 	INCLUDE_DEV_DEPS = False
 	COMPUTE_DEP_LISTS = False
+	TRACK_BUILD = True
 	TRACK_TESTS = True
 
 	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench", 
@@ -83,9 +85,11 @@ class RepoWalker():
 		self.COMPUTE_DEP_LISTS = cf_dict.get("track_deps", self.COMPUTE_DEP_LISTS)
 
 		cf_dict = config_json.get( "install", {})
+		self.DO_INSTALL = cf_dict.get("do_install", self.DO_INSTALL)
 		self.INSTALL_TIMEOUT = cf_dict.get("timeout", self.INSTALL_TIMEOUT)
 
 		cf_dict = config_json.get( "build", {})
+		self.TRACK_BUILD = cf_dict.get("track_build", self.TRACK_BUILD)
 		self.BUILD_TIMEOUT = cf_dict.get("timeout", self.BUILD_TIMEOUT)
 		self.TRACKED_BUILD_COMMANDS = cf_dict.get("tracked_build_commands", self.TRACKED_BUILD_COMMANDS)
 
