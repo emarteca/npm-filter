@@ -116,10 +116,89 @@ def run_tests( manager, pkg_json, crawler):
 		test_info.compute_test_infras()
 		test_info.compute_nested_test_commands( test_scripts)
 		test_info.compute_test_stats()
-		# print( test_info[t])
-		# print( get_test_info(error, output))
+		# if we're in verbose testing mode (i.e. getting all timing info for each test, etc)
+		# then, we rerun the test commands with all the commands for adding verbose_mode to 
+		# each of the test infras involved (individually)
+		if crawler.TEST_VERBOSE_ALL_OUTPUT:
+			# we're gonna be adding our new custom scripts for verbosity testing
+			run_command( "mv package.json TEMP_package.json_TEMP")
+			verbosity_index = 0
+			test_verbosity_output = {}
+			for test_infra in test_info.test_infras:
+				verbose_test_json = ("" if verbosity_index == 0 else "infra_" + str(verbosity_index) + "_") + crawler.TEST_VERBOSE_OUTPUT_JSON
+				infra_verbosity_config = TestInfo.VERBOSE_TESTS_EXTRA_ARGS[test_infra]
+				if not infra_verbosity_config: # checks if it's an empty object
+					print("TEST VERBOSE MODE: unsupported test infra " + test_infra)
+					test_verbosity_output[test_infra] = { "error": True }
+					continue
+				infra_verbosity_args = infra_verbosity_config.get("args", "")
+				infra_verbosity_args_pos = infra_verbosity_config.get("position", -1) # default position is at the end
+				infra_verbosity_command = instrument_test_command_for_verbose(test_info.test_command, test_infra, infra_verbosity_args, 
+																				verbose_test_json, infra_verbosity_args_pos)
+				verbosity_script_name = "instrumented_verbosity_command_" + str(verbosity_index)
+				pkg_json["scripts"][verbosity_script_name] = infra_verbosity_command
+				with open("package.json", 'w') as f:
+					json.dump( pkg_json, f)
+				print("Running verbosity: " + manager + infra_verbosity_command)
+				verb_error, verb_output, verb_retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
+				verbosity_index += 1
+				# get the output
+				test_verbosity_infra = {}
+				test_verbosity_infra["command"] = infra_verbosity_command
+				test_verbosity_infra["output_files"] = verbose_test_json
+				if crawler.VERBOSE_MODE:
+					test_verbosity_infra["test_debug"] = "\nError output: " + verb_error.decode('utf-8') \
+														 + "\nOutput stream: " + verb_output.decode('utf-8')
+				test_verbosity_output[test_infra] = test_verbosity_infra
+			test_info.set_test_verbosity_output(test_verbosity_output)
+			# put the package.json back
+			run_command( "mv TEMP_package.json_TEMP package.json")
 		test_json_summary[t] = test_info.get_json_rep()
 	return( retcode, test_json_summary)
+
+def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity_args, verbose_test_json, infra_verbosity_args_pos):
+	# replace the output file name with the custom output filename
+	# add an index to the filename for the 2nd,+ time the filename shows up
+	# so as to avoid overwriting the files
+	num_files = 0
+	new_infra_verbosity_args = ""
+	for i, sub in enumerate(infra_verbosity_args.split("$PLACEHOLDER_OUTPUT_FILE_NAME$")):
+		# not the file name
+		if sub != "": 
+			new_infra_verbosity_args += sub
+		else:
+			new_infra_verbosity_args += ("" if num_files == 0 else ("out_" + str(num_files) + "_")) + verbose_test_json 
+			num_files += 1
+	infra_verbosity_args = new_infra_verbosity_args
+	# split into sub-commands
+	command_split_chars = [ "&&", ";"]
+	infra_calls = test_script.split(test_infra)
+	instrumented_test_command = []
+	for i, infra_call in enumerate(infra_calls):
+		# if the current call is empty string and the next is non-empty
+		# then this is the call to the testing infra and the next is the arguments 
+		# so, skip this one
+		# if there are no args (i.e. no next non-empty string), then just instrument this one
+		if infra_call == "" and i < len(infra_calls) - 1 and infra_calls[i + 1] != "":
+			instrumented_test_command += [ "" ]
+			continue
+		# if the first call is non-empty, then it's pre-test-infra and we skip it too
+		elif infra_call != "" and i == 0:
+			instrumented_test_command += [ "" ]
+			continue
+		# get the arguments, splitting off from any other non-test commands that might be
+		# in this command (note: we know all the commands started with test_infra)
+		end_command_pos = re.search(r'|'.join(command_split_chars), infra_call)
+		end_command_pos = end_command_pos.start() if not end_command_pos is None else -1
+		sub_command_args = (infra_call[0:end_command_pos] if end_command_pos > -1 else infra_call).split(" ")
+		if infra_verbosity_args_pos != -1:
+			sub_command_args.insert(infra_verbosity_args_pos, infra_verbosity_args)
+		else:
+			sub_command_args.append(infra_verbosity_args)
+		# rebuild the command, re-attaching any extra sub-commands
+		instrumented_test_command += [ " ".join(sub_command_args) + (infra_call[end_command_pos:] if end_command_pos > -1 else "") ]
+	return(test_infra.join(instrumented_test_command))
+	
 
 def called_in_command( str_comm, command, manager):
 	# command ends with command terminator (this list includes \0 end-of-string, 
@@ -195,14 +274,29 @@ class TestInfo:
 				"failing": ("failed", -1)
 			},
 	}
+	# extra args, their position in the arg list, and any post-processing required
+	VERBOSE_TESTS_EXTRA_ARGS = {
+		"jest": {
+			"args": " --verbose --json --outputFile=$PLACEHOLDER_OUTPUT_FILE_NAME$",
+			"position":  -1,
+			"post_processing": None
+		},
+		"mocha": {
+			"args": " -- --reporter xunit --reporter-option output=$PLACEHOLDER_OUTPUT_FILE_NAME$",
+			"position": -1,
+			"post_processing": None #TODO change this to the xml-to-json parser
+		}
+	}
 	TRACKED_INFRAS = {
 		"mocha": {
 			"name": "mocha", 
-			"output_checkers": [ "mocha", "tap" ]
+			"output_checkers": [ "mocha", "tap" ],
+			"verbose_tests_extra_args": [ "mocha" ]
 		},
 		"jest": {
 			"name": "jest", 
-			"output_checkers": [ "jest" ]
+			"output_checkers": [ "jest" ],
+			"verbose_tests_extra_args": [ "jest" ]
 		},
 		"jasmine": {
 			"name": "jasmine", 
@@ -256,9 +350,13 @@ class TestInfo:
 		self.num_failing = None
 		self.timed_out = False
 		self.VERBOSE_MODE = VERBOSE_MODE
+		self.test_verbosity_output = None
 
 	def set_test_command( self, test_command):
 		self.test_command = test_command
+
+	def set_test_verbosity_output( self, verbose_output):
+		self.test_verbosity_output = verbose_output
 
 	def compute_test_infras( self):
 		self.test_infras = []
@@ -323,6 +421,8 @@ class TestInfo:
 			json_rep["nested_test_commands"] = self.nested_test_commands
 		if "test_infras" not in json_rep:
 			json_rep["RUNS_NEW_USER_TESTS"] = False
+		if self.test_verbosity_output:
+			json_rep["test_verbosity_output"] = self.test_verbosity_output
 		json_rep["timed_out"] = self.timed_out
 		return( json_rep)
 

@@ -33,6 +33,8 @@ class RepoWalker():
 	COMPUTE_DEP_LISTS = False
 	TRACK_BUILD = True
 	TRACK_TESTS = True
+	TEST_VERBOSE_ALL_OUTPUT = False
+	TEST_VERBOSE_OUTPUT_JSON = "verbose_test_report.json"
 
 	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench", 
 							 "mocha", "jest", "ava", "tap", "jasmine"]
@@ -42,7 +44,7 @@ class RepoWalker():
 
 	# timeouts for stages, in seconds
 	INSTALL_TIMEOUT = 1000
-	# note: these are timeouts pers *script* in the stage of the process
+	# note: these are timeouts per *script* in the stage of the process
 	BUILD_TIMEOUT = 1000
 	TEST_TIMEOUT = 1000
 
@@ -97,6 +99,9 @@ class RepoWalker():
 		self.TEST_TIMEOUT = cf_dict.get("timeout", self.TEST_TIMEOUT)
 		self.TRACKED_TEST_COMMANDS = cf_dict.get("tracked_test_commands", self.TRACKED_TEST_COMMANDS)
 		self.TRACK_TESTS = cf_dict.get("track_tests", self.TRACK_TESTS)
+		test_verbose_config = cf_dict.get("test_verbose_all_output", {})
+		self.TEST_VERBOSE_ALL_OUTPUT = test_verbose_config.get("do_verbose_tracking", self.TEST_VERBOSE_ALL_OUTPUT)
+		self.TEST_VERBOSE_OUTPUT_JSON = test_verbose_config.get("verbose_json_output_file", self.TEST_VERBOSE_OUTPUT_JSON)
 
 		cf_dict = config_json.get("QL_output", {})
 		self.QL_CUTOFF = cf_dict.get("QL_cutoff", self.QL_CUTOFF)
