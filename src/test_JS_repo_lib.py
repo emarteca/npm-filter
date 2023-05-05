@@ -101,7 +101,7 @@ def run_build( manager, pkg_json, crawler):
 			build_script_list += [b]
 	return( retcode, build_script_list, build_debug)
 
-def run_tests( manager, pkg_json, crawler, cur_dir="."):
+def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 	test_json_summary = {}
 	retcode = 0
 	if len(crawler.TRACKED_TEST_COMMANDS) == 0:
@@ -126,6 +126,7 @@ def run_tests( manager, pkg_json, crawler, cur_dir="."):
 			test_verbosity_output = {}
 			for verbosity_index, test_infra in enumerate(test_info.test_infras):
 				verbose_test_json = crawler.output_dir + "/" \
+									+ "repo_" + repo_name + "_" \
 									+ "test_" + str(test_index) + "_"\
 									+ "infra_" + str(verbosity_index) + "_" \
 									+ crawler.TEST_VERBOSE_OUTPUT_JSON
@@ -331,7 +332,7 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		if not crawler.DO_INSTALL:
 			print("Can't run tests without installing (do_install: false) -- skipping")
 		else:
-			(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler, cur_dir)
+			(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler, repo_name, cur_dir)
 			json_out["testing"] = test_json_summary
 	else:
 		json_out["testing"] = { "track_tests": False }
