@@ -52,7 +52,7 @@ class RepoWalker():
 	
 	def __init__(self, config_file="", output_dir = "."):
 		self.set_up_config( config_file)
-		self.output_dir = output_dir
+		self.output_dir = os.path.abspath(output_dir)
 
 	def set_repo_links(self, repo_links):
 		self.repo_links = repo_links

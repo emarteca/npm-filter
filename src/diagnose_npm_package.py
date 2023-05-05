@@ -46,7 +46,7 @@ class NPMSpider(scrapy.Spider):
 			self.packages = packages
 		self.start_urls = ['https://www.npmjs.com/package/' + pkg for pkg in self.packages]
 		self.set_up_config( config_file)
-		self.output_dir = output_dir
+		self.output_dir = os.path.abspath(output_dir)
 		super(NPMSpider, self).__init__(*args, **kwargs)
 
 	def set_up_config( self, config_file):
