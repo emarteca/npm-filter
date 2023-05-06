@@ -146,14 +146,15 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 					json.dump( pkg_json, f)
 				print("Running verbosity: " + manager + infra_verbosity_command)
 				verb_error, verb_output, verb_retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
+				# if there's post-processing to be done
 				if not infra_verbosity_post_proc is None:
-					for out_file in out_files:
-						infra_verbosity_post_proc(out_file)
+					for out_file_obj in out_files:
+						infra_verbosity_post_proc(out_file_obj["output_file"])
 				verbosity_index += 1
 				# get the output
 				test_verbosity_infra = {}
 				test_verbosity_infra["command"] = infra_verbosity_command
-				test_verbosity_infra["output_files"] = verbose_test_json
+				test_verbosity_infra["output_files"] = out_files
 				if crawler.VERBOSE_MODE:
 					test_verbosity_infra["test_debug"] = "\nError output: " + verb_error.decode('utf-8') \
 														 + "\nOutput stream: " + verb_output.decode('utf-8')
@@ -172,6 +173,7 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 	new_infra_verbosity_args = ""
 	output_files = []
 	for i, sub in enumerate(infra_verbosity_args.split("$PLACEHOLDER_OUTPUT_FILE_NAME$")):
+		out_file_object = { "test_script": test_script, "test_infra": test_infra }
 		# not the file name
 		if sub != "": 
 			new_infra_verbosity_args += sub
@@ -180,11 +182,12 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 			if path_index == -1:
 				output_file = "out_" + str(num_files) + "_" + verbose_test_json 
 				new_infra_verbosity_args += output_file
-				output_files += [ output_file ]
+				out_file_object["output_file"] = output_file
 			else:
 				output_file = verbose_test_json[:path_index] + "/out_" + str(num_files) + "_" + verbose_test_json[path_index + 1:]
 				new_infra_verbosity_args += output_file
-				output_files += [ output_file ]
+				out_file_object["output_file"] = output_file
+			output_files += [ out_file_object ]
 			num_files += 1
 	infra_verbosity_args = new_infra_verbosity_args
 	# split into sub-commands
