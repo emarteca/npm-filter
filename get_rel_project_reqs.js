@@ -28,8 +28,8 @@ async function get_reqs_from_pkg_json(pkg_json) {
 
     // if a range is specified, get a version in the valid range
     let { node_version, npm_version } = await get_versions_in_range(node_req, npm_req);
-    reqs["node"] = node_version;
-    reqs["npm"] = npm_version;
+    reqs["node_version"] = node_version;
+    reqs["npm_version"] = npm_version;
 
 
     oss = engines["os"] ||  [];
@@ -142,18 +142,24 @@ function is_banned(vers) {
     }
     return false;
 }
+
+function print_as_bash_vars(reqs) {
+    for ( key in reqs) {
+        console.log(key + "=" + reqs[key]);
+    }
+}
    
 async function main(proj_dir) {
     let pkg_json = {};
     try {
         pkg_json = JSON.parse(await fs.readFile(proj_dir + "/package.json", 'utf8'));
     } catch(e) {
-        console.error(e);//"Error, bailing out: " + proj_dir + " invalid directory, could not load package.json");
+        console.error("Error, bailing out: " + proj_dir + " invalid directory, could not load package.json");
         process.exit();
     }
     // get the node and npm versions
     let reqs = await get_reqs_from_pkg_json(pkg_json);
-    console.log(reqs);
+    print_as_bash_vars(reqs);
 }
 
 if (process.argv.length != 3) {
@@ -162,5 +168,4 @@ if (process.argv.length != 3) {
 }
 
 let proj_dir = process.argv[2];
-console.log(proj_dir);
 main(proj_dir);
