@@ -44,7 +44,7 @@ class TestInfo:
 		"jest": {
 			"args": " --verbose --json --outputFile=$PLACEHOLDER_OUTPUT_FILE_NAME$",
 			"position":  -1,
-			"post_processing": None
+			"post_processing": TestOutputProc.parse_jest_json_to_csv
 		},
 		"mocha": {
 			"args": " -- --reporter xunit --reporter-option output=$PLACEHOLDER_OUTPUT_FILE_NAME$",

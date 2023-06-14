@@ -46,7 +46,7 @@ if [ -d TESTING_REPOS ]; then
 fi 
 mkdir TESTING_REPOS
 
-node_version='node' # default to just the latest version
+node_version='v18.16.0' # default to just the latest LTS version
 npm_version='*'
 # if there's a repo_link specified
 if [ -n $repo_link ]; then

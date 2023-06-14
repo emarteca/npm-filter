@@ -22,10 +22,44 @@ def parse_mocha_json_to_csv(output_file, new_output_file=None):
         test_runtimes += [float(test.get("@time", "NaN"))]
         if test.get("failure", False):
             test_stdout += [test["failure"]]
-            test_pass_fail += ["Fail"]
+            test_pass_fail += ["failed"]
         else:
             test_stdout += [""]
-            test_pass_fail += ["Pass"]
+            test_pass_fail += ["passed"]
+    res_df = pd.DataFrame(list(zip(test_suites, test_names, test_runtimes, test_stdout, test_pass_fail)))
+    res_df.columns = ["test_suite", "name", "runtime", "stdout", "pass_fail"]
+    with open(new_output_file, 'w') as csv_file:
+        csv_file.write(res_df.to_csv())
+
+def parse_jest_json_to_csv(output_file, new_output_file=None):
+    if new_output_file is None:
+        new_output_file = output_file.split(".")[0] + ".csv" # same name, csv file extension
+    with open(output_file) as json_file:
+        data_dict = json.loads(json_file.read())
+    # the format: all tests are in a top level list called "testResults"
+    # this is a list of objects that have "assertionResults" representing the test suites
+    # "assertionResults" is a list of objects that have the test data
+    test_suites = []
+    test_names = []
+    test_runtimes = []
+    test_stdout = []
+    test_pass_fail = []
+    for test_suite in data_dict.get("testResults", []):
+        test_suite_results = test_suite.get("assertionResults", [])
+        test_suite_name = test_suite.get("name", "")
+        for test_results in test_suite_results:
+            test_status = test_results.get("status", "failed")
+            test_duration = test_results.get("duration")
+            # if it can't convert to a string, could be missing/nonetype (None duration for pending tests)
+            try:
+                test_duration = float(test_duration)
+            except:
+                test_duration = float("NaN")
+            test_suites += [test_suite_name]
+            test_names += [test_results.get("fullName", "")]
+            test_runtimes += [test_duration]
+            test_stdout += [";".join(test_results.get("failureMessages", []))]
+            test_pass_fail += [test_status] # passed/failed/pending -- if not present assume failed
     res_df = pd.DataFrame(list(zip(test_suites, test_names, test_runtimes, test_stdout, test_pass_fail)))
     res_df.columns = ["test_suite", "name", "runtime", "stdout", "pass_fail"]
     with open(new_output_file, 'w') as csv_file:
