@@ -17,11 +17,11 @@ fi
 
 mkdir -p /home/codeql_home
 
-cd /home/codeql_home
-curl -L -o codeql-linux64.zip https://github.com/github/codeql-cli-binaries/releases/download/v2.3.4/codeql-linux64.zip
-unzip codeql-linux64.zip 
-# clone stable version
-git clone https://github.com/github/codeql.git --branch v1.26.0 codeql-repo
+# cd /home/codeql_home
+# curl -L -o codeql-linux64.zip https://github.com/github/codeql-cli-binaries/releases/download/v2.3.4/codeql-linux64.zip
+# unzip codeql-linux64.zip 
+# # clone stable version
+# git clone https://github.com/github/codeql.git --branch v1.26.0 codeql-repo
 
 apt -y install curl dirmngr apt-transport-https lsb-release ca-certificates gnupg build-essential
 apt-get update
@@ -35,19 +35,25 @@ source $HOME/.cargo/env
 
 pip3 install --upgrade setuptools setuptools_rust wheel
 
-echo "export PATH=/home/codeql_home/codeql:$PATH" >> /root/.bashrc
 echo "alias python=python3" >> /root/.bashrc
 echo "alias ipython=ipython3" >> /root/.bashrc
 echo "alias vi=vim" >> /root/.bashrc
 
 cd /home/npm-filter
 
-repo_dir_name=SPEC_REPO_DIR
+if [ -d TESTING_REPOS ]; then
+	rm -rf TESTING_REPOS
+fi 
+mkdir TESTING_REPOS
+
 node_version='node' # default to just the latest version
 npm_version='*'
 # if there's a repo_link specified
 if [ -n $repo_link ]; then
-	git clone $repo_link $repo_dir_name
+	cd TESTING_REPOS
+	git clone $repo_link
+	# repo dir will be the only thing in TESTING_REPOS
+	repo_dir_name=`ls`
 	# this will make the node_version and npm_version variables
 	set_req_vars=`node get_rel_project_reqs.js $repo_dir_name 2>/dev/null`
 	`$set_req_vars`
@@ -62,14 +68,21 @@ fi
 
 nvm install $node_version
 nvm use $node_version
-echo "nvm use $node_version" >> /root/.bashrc
+
+NVM_DIR=/root/.nvm
+NODE_VERSION=`node --version`
+
+echo "export NODE_VERSION=\"$NODE_VERSION\"" >> /root/.bashrc
+echo "export NVM_DIR=$NVM_DIR" >> /root/.bashrc
+echo "export NODE_PATH=$NVM_DIR/$NODE_VERSION/lib/node_modules" >> /root/.bashrc
+echo "export PATH=$NVM_DIR/$NODE_VERSION/bin:/home/codeql_home/codeql:$PATH" >> /root/.bashrc
+
+# echo "nvm use $node_version" >> /root/.bashrc
 
 if [[ $npm_version == "*" ]]; then
 	nvm install-latest-npm
-	echo "nvm install-latest-npm" >> /root/.bashrc
 else
 	npm install -g npm@${npm_version}
-	echo "npm install -g npm@${npm_version}" >> /root/.bashrc
 fi
 
 
@@ -80,13 +93,8 @@ npm config set strict-ssl false
 npm install -g jest mocha tap ava nyc yarn next semver
 
 if [ -n $repo_link ]; then 
-	cd $repo_dir_name
-	# setup the project
-	if [ -f "yarn.lock" ]; then
-		yarn > /dev/null 
-	else 
-		npm install > /dev/null
-	fi
-	cd ..
+	cd /home/npm-filter
+	# do the install and build
+	python3 src/diagnose_github_repo.py --repo_link $repo_link --config configs/build_only_config.json --output_dir results
 fi
 

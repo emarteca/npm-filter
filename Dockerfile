@@ -9,11 +9,14 @@ RUN apt-get update \
 
 RUN apt update
 RUN apt -y install python3-pip
-RUN pip3 install bs4 scrapy
+RUN pip3 install bs4 scrapy xmltodict
 
 RUN mkdir -p /home/npm-filter/results
+RUN mkdir /home/npm-filter/src
+RUN mkdir /home/npm-filter/configs
 
-COPY src /home/npm-filter/
+COPY src /home/npm-filter/src
+COPY configs /home/npm-filter/configs
 COPY *.sh /home/npm-filter/
 COPY get_rel_project_reqs.js /home/npm-filter
 
