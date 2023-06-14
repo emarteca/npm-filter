@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# can be building for one specific repo
+# can be building for one specific repo, at a specific commit 
+# (if theyre not specified theyre just empty string, that's fine)
 repo_link=$1
+repo_commit=$2
 
 # install nvm, so we can then use specific versions of node and npm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.37.2/install.sh | /usr/bin/bash
@@ -49,14 +51,37 @@ mkdir TESTING_REPOS
 node_version='v18.16.0' # default to just the latest LTS version
 npm_version='*'
 # if there's a repo_link specified
-if [ -n $repo_link ]; then
+if [ ! -z "$repo_link" ]; then
 	cd TESTING_REPOS
 	git clone $repo_link
 	# repo dir will be the only thing in TESTING_REPOS
 	repo_dir_name=`ls`
+	if [ ! -z "$repo_commit" ]; then
+		cd $repo_dir_name
+		git checkout $repo_commit
+	fi
+	cd /home/npm-filter
+
 	# this will make the node_version and npm_version variables
-	set_req_vars=`node get_rel_project_reqs.js $repo_dir_name 2>/dev/null`
+	# it's ok to use the generic version here -- just using it for the vars
+	# need these dependencies for my get_rel_project_reqs.js script
+	nvm install $node_version
+	nvm use $node_version
+	nvm install-latest-npm
+
+	npm install semver node-fetch
+
+	# script to set the env variables for node_version etc
+	echo "#!/bin/bash" > req_vars.sh
+	node get_rel_project_reqs.js TESTING_REPOS/${repo_dir_name} >> req_vars.sh
+	chmod 700 req_vars.sh
+	# source in current shell: so we set the variables in the current shell
+	. req_vars.sh
+	rm req_vars.sh
+
+	echo $node_version
 	`$set_req_vars`
+	rm -r node_modules
 
 	if [[ $node_version == "*" ]]; then
 		node_version=node
@@ -69,6 +94,12 @@ fi
 nvm install $node_version
 nvm use $node_version
 
+if [[ $npm_version == "*" ]]; then
+	nvm install-latest-npm
+else
+	npm install -g npm@${npm_version}
+fi
+
 NVM_DIR=/root/.nvm
 NODE_VERSION=`node --version`
 
@@ -77,24 +108,19 @@ echo "export NVM_DIR=$NVM_DIR" >> /root/.bashrc
 echo "export NODE_PATH=$NVM_DIR/$NODE_VERSION/lib/node_modules" >> /root/.bashrc
 echo "export PATH=$NVM_DIR/$NODE_VERSION/bin:/home/codeql_home/codeql:$PATH" >> /root/.bashrc
 
-# echo "nvm use $node_version" >> /root/.bashrc
-
-if [[ $npm_version == "*" ]]; then
-	nvm install-latest-npm
-else
-	npm install -g npm@${npm_version}
-fi
-
-
 # permissive
 npm config set strict-ssl false
 
 # install the dependencies: but use the current version of npm
-npm install -g jest mocha tap ava nyc yarn next semver
+npm install -g jest mocha tap ava nyc yarn next
 
-if [ -n $repo_link ]; then 
+if [ ! -z "$repo_link" ]; then 
 	cd /home/npm-filter
 	# do the install and build
-	python3 src/diagnose_github_repo.py --repo_link $repo_link --config configs/build_only_config.json --output_dir results
+	if [ ! -z "$repo_commit" ]; then
+		python3 src/diagnose_github_repo.py --repo_link_and_SHA $repo_link $repo_commit --config configs/build_only_config.json --output_dir results
+	else 
+		python3 src/diagnose_github_repo.py --repo_link $repo_link --config configs/build_only_config.json --output_dir results
+	fi
 fi
 

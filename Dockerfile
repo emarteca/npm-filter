@@ -1,8 +1,9 @@
 FROM ubuntu:latest
 ARG DEBIAN_FRONTEND=noninteractive
 
-# build arg: setting up for a specific repo?
+# build arg: setting up for a specific repo? at a specific commit?
 ARG REPO_LINK
+ARG REPO_COMMIT
 
 RUN apt-get update \
 	&& apt-get -y install --no-install-recommends python3 git unzip vim curl gnupg xz-utils parallel
@@ -23,4 +24,4 @@ COPY get_rel_project_reqs.js /home/npm-filter
 WORKDIR /home/npm-filter
 
 RUN git config --global http.sslVerify "false"
-RUN ./build.sh $REPO_LINK
+RUN ./build.sh $REPO_LINK $REPO_COMMIT

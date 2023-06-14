@@ -145,7 +145,7 @@ function is_banned(vers) {
 
 function print_as_bash_vars(reqs) {
     for ( key in reqs) {
-        console.log(key + "=" + reqs[key]);
+        console.log("export " + key + "=" + reqs[key]);
     }
 }
    
