@@ -49,7 +49,7 @@ class TestInfo:
 		"mocha": {
 			"args": " -- --reporter xunit --reporter-option output=$PLACEHOLDER_OUTPUT_FILE_NAME$",
 			"position": -1,
-			"post_processing": TestOutputProc.xml_to_json
+			"post_processing": TestOutputProc.parse_mocha_json_to_csv
 		}
 	}
 	TRACKED_INFRAS = {
