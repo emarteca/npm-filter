@@ -19,6 +19,7 @@ class NPMSpider(scrapy.Spider):
 	VERBOSE_MODE = False
 	RM_AFTER_CLONING = False
 	SCRIPTS_OVER_CODE = []
+	CUSTOM_SETUP_SCRIPTS = []
 	QL_QUERIES = []
 
 	DO_INSTALL = True
@@ -73,6 +74,8 @@ class NPMSpider(scrapy.Spider):
 											for p in cf_dict.get( "scripts_over_code", self.SCRIPTS_OVER_CODE)]
 		self.QL_QUERIES = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
 											for p in cf_dict.get( "QL_queries", self.QL_QUERIES)]
+		self.CUSTOM_SETUP_SCRIPTS = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
+											for p in cf_dict.get( "custom_setup_scripts", self.CUSTOM_SETUP_SCRIPTS)]
 
 		cf_dict = config_json.get( "dependencies", {})
 		self.INCLUDE_DEV_DEPS = cf_dict.get("include_dev_deps", self.INCLUDE_DEV_DEPS)

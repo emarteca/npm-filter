@@ -288,10 +288,31 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		json_out["setup"]["pkg_json_ERROR"] = True
 		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 
-	# first, the install
 	manager = ""
+	# first, check if there is a custom install
+	# this runs custom scripts the same way as the scripts_over_code below; only 
+	# difference is it's before the npm-filter run
+	if crawler.CUSTOM_SETUP_SCRIPTS != []:
+		json_out["custom_setup_scripts"] = {}
+		for script in crawler.CUSTOM_SETUP_SCRIPTS:
+			print("Running custom setup script script over code: " + script)
+			json_out["custom_setup_scripts"][script] = {}
+			error, output, retcode = run_command( script)
+			script_output = output.decode('utf-8') + error.decode('utf-8')
+			ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+			script_output = ansi_escape.sub('', script_output)
+			json_out["custom_setup_scripts"][script]["output"] = script_output
+			if retcode != 0:
+				json_out["custom_setup_scripts"][script]["ERROR"] = True
+
+	# check if the install is done (check if there is a node_modules folder)
+	already_installed = os.path.isdir("node_modules")
+
+	# then, the install
 	if crawler.DO_INSTALL:
-		(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
+		(new_manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
+		if manager == "":
+			manager = new_manager
 		json_out["installation"] = {}
 		json_out["installation"]["installer_command"] = installer_command
 		if crawler.VERBOSE_MODE:
@@ -299,9 +320,13 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		if retcode != 0:
 			print("ERROR -- installation failed")
 			json_out["installation"]["ERROR"] = True
-			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+			if not already_installed:
+				return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 	else:
 		json_out["installation"] = { "do_install": False }
+
+	if manager == "": # default the manager to npm if it wasn't already IDd
+		manager = "npm run "
 
 	if crawler.COMPUTE_DEP_LISTS:
 		json_out["dependencies"] = {}
@@ -316,8 +341,8 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	# now, proceed with the build
 	if crawler.TRACK_BUILD:
 		json_out["build"] = {}
-		if not crawler.DO_INSTALL:
-			print("Can't do build without installing (do_install: false) -- skipping")
+		if not crawler.DO_INSTALL and not already_installed:
+			print("Can't do build without installing (do_install: false and not already installed) -- skipping")
 		else:
 			(retcode, build_script_list, build_debug) = run_build( manager, pkg_json, crawler)
 			json_out["build"]["build_script_list"] = build_script_list
@@ -332,8 +357,8 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	# then, the testing
 	if crawler.TRACK_TESTS:
 		json_out["testing"] = {}
-		if not crawler.DO_INSTALL:
-			print("Can't run tests without installing (do_install: false) -- skipping")
+		if not crawler.DO_INSTALL and not already_installed:
+			print("Can't run tests without installing (do_install: false and not already installed) -- skipping")
 		else:
 			(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler, repo_name, cur_dir)
 			json_out["testing"] = test_json_summary

@@ -19,11 +19,11 @@ fi
 
 mkdir -p /home/codeql_home
 
-# cd /home/codeql_home
-# curl -L -o codeql-linux64.zip https://github.com/github/codeql-cli-binaries/releases/download/v2.3.4/codeql-linux64.zip
-# unzip codeql-linux64.zip 
-# # clone stable version
-# git clone https://github.com/github/codeql.git --branch v1.26.0 codeql-repo
+cd /home/codeql_home
+curl -L -o codeql-linux64.zip https://github.com/github/codeql-cli-binaries/releases/download/v2.3.4/codeql-linux64.zip
+unzip codeql-linux64.zip 
+# clone stable version
+git clone https://github.com/github/codeql.git --branch v1.26.0 codeql-repo
 
 apt -y install curl dirmngr apt-transport-https lsb-release ca-certificates gnupg build-essential
 apt-get update
@@ -103,10 +103,12 @@ fi
 NVM_DIR=/root/.nvm
 NODE_VERSION=`node --version`
 
-echo "export NODE_VERSION=\"$NODE_VERSION\"" >> /root/.bashrc
-echo "export NVM_DIR=$NVM_DIR" >> /root/.bashrc
-echo "export NODE_PATH=$NVM_DIR/$NODE_VERSION/lib/node_modules" >> /root/.bashrc
-echo "export PATH=$NVM_DIR/$NODE_VERSION/bin:/home/codeql_home/codeql:$PATH" >> /root/.bashrc
+echo "export NODE_VERSION=\"$NODE_VERSION\"" >> /envfile
+echo "export NVM_DIR=$NVM_DIR" >> /envfile
+echo "export NODE_PATH=$NVM_DIR/$NODE_VERSION/lib/node_modules" >> /envfile
+echo "export PATH=$NVM_DIR/$NODE_VERSION/bin:/home/codeql_home/codeql:$PATH" >> /envfile
+
+cat /envfile >> /root/.bashrc
 
 # permissive
 npm config set strict-ssl false
@@ -116,11 +118,11 @@ npm install -g jest mocha tap ava nyc yarn next
 
 if [ ! -z "$repo_link" ]; then 
 	cd /home/npm-filter
-	# do the install and build
+	# do the install and build only (build_only_config.json config file)
 	if [ ! -z "$repo_commit" ]; then
-		python3 src/diagnose_github_repo.py --repo_link_and_SHA $repo_link $repo_commit --config configs/build_only_config.json --output_dir results
-	else 
-		python3 src/diagnose_github_repo.py --repo_link $repo_link --config configs/build_only_config.json --output_dir results
-	fi
+        python3 src/diagnose_github_repo.py --repo_link_and_SHA $repo_link $repo_commit --config configs/build_only_config.json --output_dir results
+    else 
+        python3 src/diagnose_github_repo.py --repo_link $repo_link --config configs/build_only_config.json --output_dir results
+    fi
 fi
 

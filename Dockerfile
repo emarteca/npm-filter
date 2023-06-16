@@ -25,3 +25,13 @@ WORKDIR /home/npm-filter
 
 RUN git config --global http.sslVerify "false"
 RUN ./build.sh $REPO_LINK $REPO_COMMIT
+# source the env variables produced by the build script (node version, etc)
+RUN . /envfile
+
+# add a default command for running the tests for repo_link and commit provided
+# this runs in verbose mode
+# need to use ENV instead of ARG in the CMD b/c docker is 10/10
+ENV ENV_REPO_COMMIT=$REPO_COMMIT
+ENV ENV_REPO_LINK=$REPO_LINK
+# gotta source our env vars so the command can run and use npm/node/etc :-)
+CMD . /envfile; ./run_verbose_for_repo_and_config.sh $ENV_REPO_LINK $ENV_REPO_COMMIT
