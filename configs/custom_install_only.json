@@ -1,0 +1,8 @@
+{
+	"test": {
+		"track_tests": false
+	},
+    "meta_info": {
+        "custom_setup_scripts": [ "custom_install_script" ]
+    }
+}

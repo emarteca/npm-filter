@@ -4,7 +4,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 # build arg: setting up for a specific repo? at a specific commit? custom install script?
 ARG REPO_LINK
 ARG REPO_COMMIT
-ARG CUSTOM_INSTALL_SCRIPT
+# placeholder: if this arg isn't specified, copy over the readme file in configs (can't copy no source, RIP)
+ARG CUSTOM_INSTALL_SCRIPT=configs/README.md
 
 RUN mkdir -p /home/npm-filter/results
 RUN mkdir /home/npm-filter/src
@@ -12,7 +13,11 @@ RUN mkdir /home/npm-filter/configs
 
 COPY src /home/npm-filter/src
 # copy the custom install script if it exists
-COPY configs/* $CUSTOM_INSTALL_SCRIPT /home/npm-filter/configs/
+RUN echo $CUSTOM_INSTALL_SCRIPT
+COPY ${CUSTOM_INSTALL_SCRIPT} configs/ /home/npm-filter/configs/
+# delete the config readme: we don't need this in the docker. and it's a flag for no-custom-install 
+# since the readme is the default for custom install
+RUN rm /home/npm-filter/configs/README.md
 # and name it the custom_install_script
 RUN if [ -f /home/npm-filter/configs/${CUSTOM_INSTALL_SCRIPT} ] ; then mv /home/npm-filter/configs/${CUSTOM_INSTALL_SCRIPT} /home/npm-filter/configs/custom_install_script ; fi
 COPY *.sh /home/npm-filter/
