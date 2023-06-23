@@ -132,7 +132,7 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 										+ "repo_" + repo_name + "_" \
 										+ "test_" + str(test_index) + "_"\
 										+ "infra_" + str(verbosity_index) + "_" \
-										+ "" if test_rep_id == "" else test_rep_id + "_" \
+										+ ("" if test_rep_id == "" else test_rep_id + "_") \
 										+ crawler.TEST_VERBOSE_OUTPUT_JSON
 					infra_verbosity_config = TestInfo.VERBOSE_TESTS_EXTRA_ARGS[test_infra]
 					if not infra_verbosity_config: # checks if it's an empty object
@@ -194,6 +194,7 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 				out_file_object["output_file"] = output_file
 			else:
 				output_file = verbose_test_json[:path_index] + "/out_" + str(num_files) + "_" + verbose_test_json[path_index + 1:]
+				print(output_file)
 				new_infra_verbosity_args += output_file
 				out_file_object["output_file"] = output_file
 			output_files += [ out_file_object ]
