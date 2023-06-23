@@ -110,59 +110,68 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([pkg_json.get("scripts", {})[t].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
 	for test_index, t in enumerate(test_scripts):
-		print("Running: " + manager + t)
-		error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
-		test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
-		test_info.set_test_command( pkg_json.get("scripts", {})[t])
-		test_info.compute_test_infras()
-		test_info.compute_nested_test_commands( test_scripts)
-		test_info.compute_test_stats()
-		# if we're in verbose testing mode (i.e. getting all timing info for each test, etc)
-		# then, we rerun the test commands with all the commands for adding verbose_mode to 
-		# each of the test infras involved (individually)
-		if crawler.TEST_VERBOSE_ALL_OUTPUT:
-			# we're gonna be adding our new custom scripts for verbosity testing
-			run_command( "mv package.json TEMP_package.json_TEMP")
-			test_verbosity_output = {}
-			for verbosity_index, test_infra in enumerate(test_info.test_infras):
-				verbose_test_json = crawler.output_dir + "/" \
-									+ "repo_" + repo_name + "_" \
-									+ "test_" + str(test_index) + "_"\
-									+ "infra_" + str(verbosity_index) + "_" \
-									+ crawler.TEST_VERBOSE_OUTPUT_JSON
-				infra_verbosity_config = TestInfo.VERBOSE_TESTS_EXTRA_ARGS[test_infra]
-				if not infra_verbosity_config: # checks if it's an empty object
-					print("TEST VERBOSE MODE: unsupported test infra " + test_infra)
-					test_verbosity_output[test_infra] = { "error": True }
-					continue
-				infra_verbosity_args = infra_verbosity_config.get("args", "")
-				infra_verbosity_args_pos = infra_verbosity_config.get("position", -1) # default position is at the end
-				infra_verbosity_post_proc = infra_verbosity_config.get("post_processing", None)
-				infra_verbosity_command, out_files = instrument_test_command_for_verbose(test_info.test_command, test_infra, infra_verbosity_args, 
-																				verbose_test_json, infra_verbosity_args_pos)
-				verbosity_script_name = "instrumented_verbosity_command_" + str(verbosity_index)
-				pkg_json["scripts"][verbosity_script_name] = infra_verbosity_command
-				with open("package.json", 'w') as f:
-					json.dump( pkg_json, f)
-				print("Running verbosity: " + manager + infra_verbosity_command)
-				verb_error, verb_output, verb_retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
-				# if there's post-processing to be done
-				if not infra_verbosity_post_proc is None:
-					for out_file_obj in out_files:
-						infra_verbosity_post_proc(out_file_obj["output_file"])
-				verbosity_index += 1
-				# get the output
-				test_verbosity_infra = {}
-				test_verbosity_infra["command"] = infra_verbosity_command
-				test_verbosity_infra["output_files"] = out_files
-				if crawler.VERBOSE_MODE:
-					test_verbosity_infra["test_debug"] = "\nError output: " + verb_error.decode('utf-8') \
-														 + "\nOutput stream: " + verb_output.decode('utf-8')
-				test_verbosity_output[test_infra] = test_verbosity_infra
-			test_info.set_test_verbosity_output(test_verbosity_output)
-			# put the package.json back
-			run_command( "mv TEMP_package.json_TEMP package.json")
-		test_json_summary[t] = test_info.get_json_rep()
+		test_output_rep = {}
+		for test_rep_index in range(crawler.TEST_COMMAND_REPEATS):
+			test_rep_id = "" if crawler.TEST_COMMAND_REPEATS == 1 else "testrep_" + str(test_rep_index)
+			print("Running rep " + str(test_rep_index) + " of " + str(crawler.TEST_COMMAND_REPEATS - 1) + ": " + manager + t)
+			error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
+			test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
+			test_info.set_test_command( pkg_json.get("scripts", {})[t])
+			test_info.compute_test_infras()
+			test_info.compute_nested_test_commands( test_scripts)
+			test_info.compute_test_stats()
+			# if we're in verbose testing mode (i.e. getting all timing info for each test, etc)
+			# then, we rerun the test commands with all the commands for adding verbose_mode to 
+			# each of the test infras involved (individually)
+			if crawler.TEST_VERBOSE_ALL_OUTPUT:
+				# we're gonna be adding our new custom scripts for verbosity testing
+				run_command( "mv package.json TEMP_package.json_TEMP")
+				test_verbosity_output = {}
+				for verbosity_index, test_infra in enumerate(test_info.test_infras):
+					verbose_test_json = crawler.output_dir + "/" \
+										+ "repo_" + repo_name + "_" \
+										+ "test_" + str(test_index) + "_"\
+										+ "infra_" + str(verbosity_index) + "_" \
+										+ "" if test_rep_id == "" else test_rep_id + "_" \
+										+ crawler.TEST_VERBOSE_OUTPUT_JSON
+					infra_verbosity_config = TestInfo.VERBOSE_TESTS_EXTRA_ARGS[test_infra]
+					if not infra_verbosity_config: # checks if it's an empty object
+						print("TEST VERBOSE MODE: unsupported test infra " + test_infra)
+						test_verbosity_output[test_infra] = { "error": True }
+						continue
+					infra_verbosity_args = infra_verbosity_config.get("args", "")
+					infra_verbosity_args_pos = infra_verbosity_config.get("position", -1) # default position is at the end
+					infra_verbosity_post_proc = infra_verbosity_config.get("post_processing", None)
+					infra_verbosity_command, out_files = instrument_test_command_for_verbose(test_info.test_command, test_infra, infra_verbosity_args, 
+																					verbose_test_json, infra_verbosity_args_pos)
+					verbosity_script_name = "instrumented_verbosity_command_" + str(verbosity_index)
+					pkg_json["scripts"][verbosity_script_name] = infra_verbosity_command
+					with open("package.json", 'w') as f:
+						json.dump( pkg_json, f)
+					print("Running verbosity: " + manager + infra_verbosity_command)
+					verb_error, verb_output, verb_retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
+					# if there's post-processing to be done
+					if not infra_verbosity_post_proc is None:
+						for out_file_obj in out_files:
+							infra_verbosity_post_proc(out_file_obj["output_file"])
+					verbosity_index += 1
+					# get the output
+					test_verbosity_infra = {}
+					test_verbosity_infra["command"] = infra_verbosity_command
+					test_verbosity_infra["output_files"] = out_files
+					if crawler.VERBOSE_MODE:
+						test_verbosity_infra["test_debug"] = "\nError output: " + verb_error.decode('utf-8') \
+															+ "\nOutput stream: " + verb_output.decode('utf-8')
+					test_verbosity_output[test_infra] = test_verbosity_infra
+				test_info.set_test_verbosity_output(test_verbosity_output)
+				# put the package.json back
+				run_command( "mv TEMP_package.json_TEMP package.json")
+			# if we're not doing any repeats then don't make another layer of jsons
+			if crawler.TEST_COMMAND_REPEATS == 1:
+				test_output_rep = test_info.get_json_rep()
+			else:
+				test_output_rep[test_rep_id] = test_info.get_json_rep()
+		test_json_summary[t] = test_output_rep
 	return( retcode, test_json_summary)
 
 def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity_args, verbose_test_json, infra_verbosity_args_pos):

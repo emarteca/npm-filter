@@ -13,6 +13,7 @@
 		"timeout": 1000
 	},
 	"test": {
+		"test_command_repeats": 1,
 		"track_tests": true,
 		"test_verbose_all_output": {
 			"do_verbose_tracking": false,

@@ -29,6 +29,7 @@ class NPMSpider(scrapy.Spider):
 	TRACK_TESTS = True
 	TEST_VERBOSE_ALL_OUTPUT = False
 	TEST_VERBOSE_OUTPUT_JSON = "verbose_test_report.json"
+	TEST_COMMAND_REPEATS = 1
 
 	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench", 
 							 "mocha", "jest", "ava", "tap", "jasmine"]
@@ -94,6 +95,7 @@ class NPMSpider(scrapy.Spider):
 		self.TEST_TIMEOUT = cf_dict.get("timeout", self.TEST_TIMEOUT)
 		self.TRACKED_TEST_COMMANDS = cf_dict.get("tracked_test_commands", self.TRACKED_TEST_COMMANDS)
 		self.TRACK_TESTS = cf_dict.get("track_tests", self.TRACK_TESTS)
+		self.TEST_COMMAND_REPEATS = cf_dict.get("test_command_repeats", self.TEST_COMMAND_REPEATS)
 		test_verbose_config = cf_dict.get("test_verbose_all_output", {})
 		self.TEST_VERBOSE_ALL_OUTPUT = test_verbose_config.get("do_verbose_tracking", self.TEST_VERBOSE_ALL_OUTPUT)
 		self.TEST_VERBOSE_OUTPUT_JSON = test_verbose_config.get("verbose_json_output_file", self.TEST_VERBOSE_OUTPUT_JSON)
