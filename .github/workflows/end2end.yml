@@ -28,12 +28,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+      - name: Build NPMFilter container
+        run: docker build -t npmfilter .
       - name: Run NPMFilter
         id: run-npm-filter
         env:
             SHA: ${{ inputs.project_sha }}
             URL: ${{ inputs.project_url }}
+            DOCKER_IMAGE: npmfilter:latest
         run: |
             IFS="/" read -r -a projectArray <<< "$URL"
             OrgName=${projectArray[0]} 
