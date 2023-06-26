@@ -63,6 +63,10 @@ jobs:
               },
               "test": {
                       "track_tests": true,
+                      "test_verbose_all_output": {
+                        "do_verbose_tracking": false,
+                        "verbose_json_output_file": "verbose_test_report.json"
+                      },                  
                       "tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench",
                                                                         "mocha", "jest", "ava", "tap", "jasmine"],
                       "timeout": 1000
