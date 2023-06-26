@@ -20,5 +20,5 @@ docker run --mount type=bind,source=`pwd`/local_mount,destination=/mount \
 		   --volume `pwd`/docker_configs:/home/npm-filter/docker_configs\
 		   -w /home/npm-filter \
 		   $DOCKER_IMAGE \
-		   bash -c "PATH=/home/codeql_home/codeql:$PATH; $npm_filter_command --output_dir results"
+		   bash -c "source /envfile; PATH=/home/codeql_home/codeql:\$PATH; $npm_filter_command --output_dir results"
 rm -r local_mount
