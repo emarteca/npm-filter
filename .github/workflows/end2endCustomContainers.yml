@@ -33,7 +33,7 @@ jobs:
            if [ -f "project-overrides/${OrgName}-${ProjectName}.sh" ]; then
             CUSTOM_INSTALL_SCRIPT="--build-arg CUSTOM_INSTALL_SCRIPT=project-overrides/${OrgName}-${ProjectName}.sh"
            fi
-           docker build -t npmfilter --build-arg REPO_LINK=${{ inputs.project_url }} --REPO_COMMIT=${{ inputs.project_sha }} $CUSTOM_INSTALL_SCRIPT .
+           docker build -t npmfilter --build-arg REPO_LINK=${{ inputs.project_url }} --build-arg REPO_COMMIT=${{ inputs.project_sha }} $CUSTOM_INSTALL_SCRIPT .
       - name: Run NPMFilter
         id: run-npm-filter
         env:
