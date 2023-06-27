@@ -103,8 +103,10 @@ jobs:
             else
                 echo "OK: ${TestsRun} tests found!"
             fi
+
+            echo "LOGNAME=results-${OrgName}-${ProjectName}-${SHA}" >> "$GITHUB_OUTPUT"
       - name: Upload output
         uses: actions/upload-artifact@v2
         with:
-          name: results_${{ inputs.project_url }}_${{ inputs.project_sha }}
+          name: ${{ steps.run-npm-filter.outputs.LOGNAME }}
           path: npm_filter_docker_results
