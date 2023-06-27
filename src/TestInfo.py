@@ -99,7 +99,7 @@ class TestInfo:
 		"gulp lint": "gulp lint -- linter"
 	}
 
-	TRACKED_RUNNERS = [ "node", "babel-node", "grunt" ]
+	TRACKED_RUNNERS = [ "node", "babel-node", "grunt", "lerna" ]
 
 	def __init__(self, success, error_stream, output_stream, manager, VERBOSE_MODE):
 		self.success = success

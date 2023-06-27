@@ -134,7 +134,7 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 										+ "infra_" + str(verbosity_index) + "_" \
 										+ ("" if test_rep_id == "" else test_rep_id + "_") \
 										+ crawler.TEST_VERBOSE_OUTPUT_JSON
-					infra_verbosity_config = TestInfo.VERBOSE_TESTS_EXTRA_ARGS[test_infra]
+					infra_verbosity_config = TestInfo.VERBOSE_TESTS_EXTRA_ARGS.get(test_infra)
 					if not infra_verbosity_config: # checks if it's an empty object
 						print("TEST VERBOSE MODE: unsupported test infra " + test_infra)
 						test_verbosity_output[test_infra] = { "error": True }
@@ -205,6 +205,14 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 	infra_calls = test_script.split(test_infra)
 	instrumented_test_command = []
 	for i, infra_call in enumerate(infra_calls):
+		# if the last char in the string is not whitespace and not a command delimiter,
+		# and it's not the last string in the split
+		# then it's a string that is appended to the front of the name of the infra (e.g., "\"jest\"") 
+		# and not a call 
+		if i < len(infra_calls) - 1 and infra_call != "" and (not infra_call[-1].isspace()) and (not any([infra_call.endswith(s) for s in command_split_chars])):
+			instrumented_test_command += [ infra_call ]
+			continue
+
 		# if the current call is empty string
 		# then this is the call to the testing infra and the next is the arguments 
 		# so, skip this one

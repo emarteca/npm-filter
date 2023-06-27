@@ -8,8 +8,12 @@ def parse_mocha_json_to_csv(output_file, new_output_file=None):
     # convert an xml file to json
     # used to convert the xunit reporter output from mocha into json 
     # code from https://www.geeksforgeeks.org/python-xml-to-json/
-    with open(output_file) as xml_file:
-        data_dict = xmltodict.parse(xml_file.read()).get("testsuite", {})
+    data_dict = {}
+    try:
+        with open(output_file) as xml_file:
+            data_dict = xmltodict.parse(xml_file.read()).get("testsuite", {})
+    except:
+        data_dict = {}
     # the format: all the tests are in a top-level list called "testcase"
     test_suites = []
     test_names = []
@@ -34,8 +38,12 @@ def parse_mocha_json_to_csv(output_file, new_output_file=None):
 def parse_jest_json_to_csv(output_file, new_output_file=None):
     if new_output_file is None:
         new_output_file = output_file.split(".")[0] + ".csv" # same name, csv file extension
-    with open(output_file) as json_file:
-        data_dict = json.loads(json_file.read())
+    data_dict = {}
+    try:
+        with open(output_file) as json_file:
+            data_dict = json.loads(json_file.read())
+    except:
+        data_dict = {}
     # the format: all tests are in a top level list called "testResults"
     # this is a list of objects that have "assertionResults" representing the test suites
     # "assertionResults" is a list of objects that have the test data
