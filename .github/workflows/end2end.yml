@@ -64,7 +64,7 @@ jobs:
               "test": {
                       "track_tests": true,
                       "test_verbose_all_output": {
-                        "do_verbose_tracking": false,
+                        "do_verbose_tracking": true,
                         "verbose_json_output_file": "verbose_test_report.json"
                       },                  
                       "tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench",
@@ -101,5 +101,5 @@ jobs:
       - name: Upload output
         uses: actions/upload-artifact@v2
         with:
-            name: npm_filter_docker_results
+            name: results_${{ inputs.project_url }}_${{ inputs.project_sha }}
             path: npm_filter_docker_results
