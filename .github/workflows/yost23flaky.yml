@@ -1,0 +1,87 @@
+name: Test on Yost23 JS projects
+
+on:
+  push
+
+env:
+  PROJECTS_JSON: |
+    { projects: [
+      {"project_url": "UXPin/adele", "project_sha": "0f1f398f7b159a2fc957de7afdd00ddb06ee35ab"},
+      {"project_url": "algolia/algoliasearch-client-javascript", "project_sha": "f09349842d25f84f0f00b7fd44f54785bfa34725"},
+      {"project_url": "alibaba/anyproxy", "project_sha": "b93f948107b956e07c7b68faeff0c777a1f50486"},
+      {"project_url": "apify/apify-js", "project_sha": "39f07c94c76fca26ff5a6a407d57a9e257dc43b9"},
+      {"project_url": "apollographql/apollo-cache-persist", "project_sha": "34ceed88117aba5f96674d63de19eca5d9431dc3"},
+      {"project_url": "apollographql/apollo-client-devtools", "project_sha": "487c94a45aed3de5de0335d20325798ed85eada0"},
+      {"project_url": "antvis/AVA", "project_sha": "572155aaf8312d6c50efa54dc39aef5ee9563cd4"},
+      {"project_url": "aws/aws-cdk", "project_sha": "c6d27c3d8dabfefb675f195b1ae52203f842f936"},
+      {"project_url": "pixielabs/cavy", "project_sha": "bd8209383f16e18dd0fad459009335c03d3de97b"},
+      {"project_url": "aws-actions/configure-aws-credentials", "project_sha": "0270d0bcecaf2c76c8fbf7bf3de0d65a6d06e076"},
+      {"project_url": "CVarisco/create-component-app", "project_sha": "67ae259f8e20153f0ac39fb61831c2473367f2e4"},
+      {"project_url": "ds300/derivablejs", "project_sha": "f334daa1950940d09751f86630ce9af2041f9b69"},
+      {"project_url": "DextApp/dext", "project_sha": "50713d8a30152f640caf0ec3870c6c4e1befdc4e"},
+      {"project_url": "emotion-js/facepaint", "project_sha": "a0166db7f781d57d48367759d085a0c401572fa1"},
+      {"project_url": "artsy/fresnel", "project_sha": "9d51514b09bc02b249371f23891d163fd5c06df4"},
+      {"project_url": "threepointone/glam", "project_sha": "9fdabd46e7ebd6018efe9a0c4e0ec9d3016c950c"},
+      {"project_url": "2fd/graphdoc", "project_sha": "8be9dbff4c17fba2870c4a3eec773f4590cf0679"},
+      {"project_url": "actions/javascript-action", "project_sha": "7112950ce6a49ecd52b3c9b25e75141f1afa8a08"},
+      {"project_url": "Automattic/jetpack", "project_sha": "39aa885dc1fc2f5ae9e93e84c79bee086a7cad03"},
+      {"project_url": "auth0/lock", "project_sha": "4d3cd89c7a8dd774527125691f1d2fb8f3c178fe"},
+      {"project_url": "arnog/mathlive", "project_sha": "99a678e4b3dc844df2004e6ce8727c3532ccf290"},
+      {"project_url": "cyrilwanner/next-compose-plugins", "project_sha": "d81db51821f92a8872930ed630eb064e3fb82e04"},
+      {"project_url": "pivotal-cf/pivotal-ui", "project_sha": "65f68b4d16b2e60a54deeab8e0b3b6c490a1d6a9"},
+      {"project_url": "babel/preset-modules", "project_sha": "488d2199bab1fc2bf10421edc6660c86d30b2dd0"},
+      {"project_url": "kozhevnikov/proxymise", "project_sha": "d23e0a31d215f0503524a66be9536f269bf1aae2"},
+      {"project_url": "alibaba/rax", "project_sha": "13d80a491f18c74034aa9b05c36ac922ff8c3357"},
+      {"project_url": "atlassian/react-beautiful-dnd", "project_sha": "013bfceac04ff48548c33cdc468dd2927446fc1b"},
+      {"project_url": "amaroteam/react-credit-cards", "project_sha": "218a7ebbb568d11fb9dbed5d53bba745a534380f"},
+      {"project_url": "adazzle/react-data-grid", "project_sha": "c46929b11b797c57c09d867afdb625c707df78a8"},
+      {"project_url": "arqex/react-datetime", "project_sha": "e3bd53376f14fa509b448ed1bc3eba41a63c470a"},
+      {"project_url": "anthonyjgrove/react-google-login", "project_sha": "a38c7b6c5d44fa01354ae37c6e1a5e807ff36259"},
+      {"project_url": "asseinfo/react-kanban", "project_sha": "5990d660d7885ed4f9d339209335356e75ba3488"},
+      {"project_url": "fakiolinho/react-loading", "project_sha": "4982465a99d80c52babe9ef52949c1c167bc5ba1"},
+      {"project_url": "leebyron/react-loops", "project_sha": "18ee1a19c31267e4e3197974bda18685fc020429"},
+      {"project_url": "rcaferati/react-native-really-awesome-button", "project_sha": "19f63342996ac9bfb8abf0bba74bbb24c1f3e963"},
+      {"project_url": "ds300/react-native-typescript-transformer", "project_sha": "369a457696cb1126da9c69fa403d6502366b7afd"},
+      {"project_url": "ReactPrimer/ReactPrimer", "project_sha": "2a0b8350f5ac9700a8e35e9b453d80442ffa56fd"},
+      {"project_url": "appleboy/react-recaptcha", "project_sha": "50d72468c53bce591003b0aefc6ca1e78f15f9ca"},
+      {"project_url": "airbnb/react-sketchapp", "project_sha": "b238e69c6f1e65ec6b1d8a908a91fbd9a8cc43a7"},
+      {"project_url": "akiran/react-slick", "project_sha": "55584190f99cc48710407b304595194cd782e261"},
+      {"project_url": "felixrieseberg/React-Spreadsheet-Component", "project_sha": "19802930bb1ce4e2f78ceaa6279da7b3076aa48f"},
+      {"project_url": "ReactTraining/react-stdio", "project_sha": "69489252dc34dd088a78b1325156a8648b67a3cd"},
+      {"project_url": "Andarist/react-textarea-autosize", "project_sha": "d1066f1cef7fd9298cf0b1353d49b74226392337"},
+      {"project_url": "AlecAivazis/redux-responsive", "project_sha": "a546003c579ba64a3b461414d474de86ea5d5d2b"},
+      {"project_url": "clarus/redux-ship", "project_sha": "2364acef33cc8fef793709931c3014f8d2a1b9f0"},
+      {"project_url": "realadvisor/rifm", "project_sha": "b51d843e6991b36a5f7bfb5f7dcb4cd78919be44"},
+      {"project_url": "zeke/semantic-pull-requests", "project_sha": "f4916f442d077624ea7bc24751be187be3c3ac9f"},
+      {"project_url": "sheinsight/shineout", "project_sha": "8cf93eb0c5ad2a2c2ed74d95e195f0ac8b0e357d"},
+      {"project_url": "amzn/style-dictionary", "project_sha": "2cf72f3f89996503608c238d7f3bcbab5b53e719"},
+      {"project_url": "sindu12jun/table-dragger", "project_sha": "1dcbed9543d4c44f08d5478f93439c8db152dfad"},
+      {"project_url": "alexreardon/tiny-invariant", "project_sha": "619da0f9119558cd57aeff1ba5d022cad74f9bc7"},
+      {"project_url": "aweary/tinytime", "project_sha": "656cfc054e69a2d0c6d9eb4511019ec45c8a23c8"},
+      {"project_url": "atomiks/tippyjs-react", "project_sha": "2699f0450c28a92cd5bbd402573ce9ed64252899"},
+      {"project_url": "angular-ui/ui-router", "project_sha": "e8694114594d5aaf9f40e27b8ba194bca85595de"},
+      {"project_url": "akxcv/vuera", "project_sha": "285c0bb34c0d3131c92b591270088cded014087c"},
+      {"project_url": "Armour/vue-typescript-admin-template", "project_sha": "bff134353b14aaff88ada097998f3268aa795969"},
+      {"project_url": "lukeraymonddowning/whenipress", "project_sha": "294b7f1b8929865958c054fe652d232caa9bad75"}
+    ]}
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix-projects: ${{ steps.set-matrix.outputs.matrix-projects }}
+    steps:
+      - id: set-matrix
+        run: |
+          echo "matrix-projects<<__EOF__" >> $GITHUB_OUTPUT
+          echo $PROJECTS_JSON >> $GITHUB_OUTPUT
+          echo "__EOF__" >> $GITHUB_OUTPUT
+  execute:
+    needs: [build-matrix]
+    strategy:
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix-projects) }}
+      fail-fast: false
+    uses: ./.github/workflows/end2endCustomContainers.yml
+    with:
+      project_url: ${{ matrix.projects.project_url }}
+      project_sha: ${{ matrix.projects.project_sha }}
