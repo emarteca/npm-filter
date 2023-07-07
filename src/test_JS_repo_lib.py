@@ -307,6 +307,11 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 
 	manager = ""
+	# if there's custom lock files, copy them into the repo (repo is "." since we're in the repo currently)
+	if crawler.CUSTOM_LOCK_FILES != []:
+		for custom_lock in crawler.CUSTOM_LOCK_FILES:
+			run_command("cp " + custom_lock + " .")
+
 	# first, check if there is a custom install
 	# this runs custom scripts the same way as the scripts_over_code below; only 
 	# difference is it's before the npm-filter run
