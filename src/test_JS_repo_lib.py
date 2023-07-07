@@ -281,7 +281,40 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	else:
 		print( "Package repository already exists. Using existing directory: " + repo_name)
 	
+	# diagnose the repo dir
+	return( diagnose_repo_name(repo_name, crawler, json_out, cur_dir, commit_SHA=commit_SHA))
 
+def diagnose_local_dir(repo_dir, crawler):
+	json_out = {}
+	repo_name = ""
+	cur_dir = os.getcwd()
+	repo_name = repo_dir.split("/")[-1]
+	if not os.path.isdir(repo_dir):
+		print("ERROR using local directory: " + repo_dir + " invalid directory path")
+		json_out["setup"] = {}
+		json_out["setup"]["local_dir_ERROR"] = True
+		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	
+	print("Diagnosing: " + repo_name + " --- from: " + repo_dir)
+	if not os.path.isdir("TESTING_REPOS"):
+		os.mkdir("TESTING_REPOS")
+	os.chdir("TESTING_REPOS")
+
+	# if the repo already exists, dont clone it
+	if not os.path.isdir( repo_name):
+		print( "Copying package directory")
+		error, output, retcode = run_command( "cp -r " + repo_dir + " " + repo_name)
+		if retcode != 0:
+			print("ERROR copying the directory. Exiting now.")
+			json_out["setup"] = {}
+			json_out["setup"]["local_dir_ERROR"] = True
+			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	else:
+		print( "Package directory already exists. Using existing directory: " + repo_name)
+	# diagnose the repo dir
+	return( diagnose_repo_name(repo_name, crawler, json_out, cur_dir))
+
+def diagnose_repo_name(repo_name, crawler, json_out, cur_dir, commit_SHA=None):
 	# move into the repo and begin testing
 	os.chdir( repo_name)
 
