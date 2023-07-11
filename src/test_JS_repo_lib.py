@@ -203,16 +203,30 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 	# split into sub-commands
 	command_split_chars = [ "&&", ";"]
 	infra_calls = test_script.split(test_infra)
-	instrumented_test_command = []
-	for i, infra_call in enumerate(infra_calls):
+	real_calls = []
+	for maybe_call in infra_calls:
 		# if the last char in the string is not whitespace and not a command delimiter,
 		# and it's not the last string in the split
 		# then it's a string that is appended to the front of the name of the infra (e.g., "\"jest\"") 
 		# and not a call 
-		if i < len(infra_calls) - 1 and infra_call != "" and (not infra_call[-1].isspace()) and (not any([infra_call.endswith(s) for s in command_split_chars])):
-			instrumented_test_command += [ infra_call ]
-			continue
-
+		# rebuild it
+		if i < len(infra_calls) - 1 and maybe_call != "" and (not maybe_call[-1].isspace()) and (not any([maybe_call.endswith(s) for s in command_split_chars])):
+			if len(real_calls) > 0:
+				real_calls[-1] += test_infra + maybe_call
+				continue
+		# if the first char in the string is not whitespace and not a command delimiter,
+		# and it's not the first string in the split
+		# then it's a string that is appended to the back of the name of the infra (e.g., jest".config.js")
+		# and not a call either
+		# rebuild it
+		if i > 0 and maybe_call != "" and (not maybe_call[0].isspace()) and (not any([maybe_call.startswith(s) for s in command_split_chars])):
+			if len(real_calls) > 0:
+				real_calls[-1] += test_infra + maybe_call
+				continue
+		real_calls += [ maybe_call ]
+	infra_calls = real_calls
+	instrumented_test_command = []
+	for i, infra_call in enumerate(infra_calls):
 		# if the current call is empty string
 		# then this is the call to the testing infra and the next is the arguments 
 		# so, skip this one

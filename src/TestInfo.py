@@ -228,6 +228,8 @@ def called_in_command( str_comm, command, manager):
 			return( True)
 		if command.find( "cross-env CI=true " + check_comm) > -1:
 			return( True)
+		if command.find( "cross-env TZ=utc " + check_comm) > -1:
+			return( True)
 		if command.find( "opener " + check_comm) > -1:
 			return( True)
 		if command.find( "gulp " + check_comm) > -1:
