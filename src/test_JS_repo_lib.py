@@ -234,8 +234,8 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 		if infra_call == "" and i < len(infra_calls) - 1:
 			instrumented_test_command += [ "" ]
 			continue
-		# if the first call is non-empty, then it's pre-test-infra and we skip it too
-		elif infra_call != "" and i == 0:
+		# if the first call is non-empty and there's more than one call, then it's pre-test-infra and we skip it too
+		elif len(infra_calls) > 1 and infra_call != "" and i == 0:
 			instrumented_test_command += [ "" ]
 			continue
 		# get the arguments, splitting off from any other non-test commands that might be

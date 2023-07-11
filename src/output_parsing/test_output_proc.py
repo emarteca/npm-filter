@@ -69,6 +69,9 @@ def parse_jest_json_to_csv(output_file, new_output_file=None):
             test_stdout += [";".join(test_results.get("failureMessages", []))]
             test_pass_fail += [test_status] # passed/failed/pending -- if not present assume failed
     res_df = pd.DataFrame(list(zip(test_suites, test_names, test_runtimes, test_stdout, test_pass_fail)))
-    res_df.columns = ["test_suite", "name", "runtime", "stdout", "pass_fail"]
-    with open(new_output_file, 'w') as csv_file:
-        csv_file.write(res_df.to_csv())
+    try:
+        res_df.columns = ["test_suite", "name", "runtime", "stdout", "pass_fail"]
+        with open(new_output_file, 'w') as csv_file:
+            csv_file.write(res_df.to_csv())
+    except:
+        print("ERROR in data for file " + new_output_file + " -- no output printed. skipping to next step...")
