@@ -20,7 +20,7 @@ python src/diagnose_github_repo.py
 			[--repo_list_file [rlistfile]] 
 			[--repo_link [rlink]] 
 			[--repo_link_and_SHA [rlink_and_SHA]] 
-            [--repo_local_dir [path_to_local_dir]]
+			[--repo_local_dir [path_to_local_dir]]
 			[--config [config_file]]
                         [--output_dir [output_dir]]
 ```
