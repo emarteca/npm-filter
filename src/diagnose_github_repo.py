@@ -51,10 +51,10 @@ class RepoWalker():
 	TRACKED_BUILD_COMMANDS = ["build", "compile", "init"]
 
 	# timeouts for stages, in seconds
-	INSTALL_TIMEOUT = 1000
+	INSTALL_TIMEOUT = 10800 # 3 hours
 	# note: these are timeouts per *script* in the stage of the process
-	BUILD_TIMEOUT = 1000
-	TEST_TIMEOUT = 1000
+	BUILD_TIMEOUT = 10800 # 3 hours
+	TEST_TIMEOUT = 10800 # 3 hours
 
 	QL_CUTOFF = 5 # ignore if there are < 5 results
 	
