@@ -20,6 +20,7 @@ python src/diagnose_github_repo.py
 			[--repo_list_file [rlistfile]] 
 			[--repo_link [rlink]] 
 			[--repo_link_and_SHA [rlink_and_SHA]] 
+            [--repo_local_dir [path_to_local_dir]]
 			[--config [config_file]]
                         [--output_dir [output_dir]]
 ```
@@ -35,6 +36,7 @@ All arguments are optional, although the tool will not do anything if no repo li
 	```
 * `--repo_link [rlink]`: a link to a single GitHub repo to be analyzed, e.g., `https://github.com/expressjs/body-parser`
 * `--repo_link_and_SHA [rlink_and_SHA]`: a link to a single GitHub repo to be analyzed, followed by a space-delimited commit SHA to analyze the repo at, e.g., `https://github.com/expressjs/body-parser 	d0a214b3beded8a9cd2dcb51d355f92c9ead81d4`
+* `repo_local_dir`: path to a local directory containing the source code of a repo/package to be diagnosed
 * `--config [config_file]`: path to a configuration file for the tool (config options explained in [the config file section](#configuration-file)) 
 * `--output_dir [output_dir]`: path to a directory in which to output the tool's results files (shape of results are explained in [the output section](#output))
 
@@ -73,6 +75,7 @@ The output is organized into the following top-level fields in the JSON, in orde
 	* if it runs other test commands, then a list of these commands are included (`nested_test_commands`)
 	* whether or not it timed out (`timed_out`)
 	* if it does run new user tests, then the number of passing and number of failing tests (`num_passing`, `num_failing`)
+    * if verbose testing is specified as an option, then there will be an additional file of extra test output produced
 * `scripts_over_code`: an object with fields for each of the scripts run over the package source code. For each script, the tool lists its output and if there was an error.
 * `QL_queries`: an object with fields for each of the QL queries run over the package source code. For each script, the tool lists the output (if running in verbose mode), and if there was an error.
 * `metadata`: an object with fields for some metadata about the package: repository link, commit SHA if one was specified
@@ -132,9 +135,29 @@ The output of each QL query is saved to a CSV file in the same directory as the 
 ### Running with docker
 To be safe, you should probably run any untrusted code in a sandbox.
 Since the entire point of this tool is to run code from a set of packages/projects you didn't write, we assume most of this code will fall into the untrusted category.
-We host the docker container [on DockerHub](https://hub.docker.com/r/emarteca/npm-filter); if you edit the package source code and want to run your version in a docker container, we have included the docker build command below.
 
-#### Building docker (if you've updated the npm-filter source code)
+We host the generic docker container [on DockerHub](https://hub.docker.com/r/emarteca/npm-filter); if you edit the package source code and want to run your version in a docker container, we have included the docker build command below.
+
+The generic docker container runs on any package or repo specified.
+However, it is pre-built with default versions of node and npm.
+There is also the option to build a _repo-specific_ docker container. 
+In this case, the container is built with the particular version of node and npm specified in the repo's `package.json` configuration file.
+The container is also pre-built with the install and build phases of `npm-filter` run, so that you can then run the tests in the container without waiting for any setup.
+
+#### Building a container-specific docker
+If you want to build a container specific to a particular repo, use the following command:
+```
+# general use
+docker build -t emarteca/npm-filter --build-arg REPO_LINK=[github link to repo] [--build-arg REPO_COMMIT=[specific commit SHA]]
+
+# specific example for memfs
+docker build -t emarteca/npm-filter --build-arg REPO_LINK=https://github.com/streamich/memfs 
+
+# another example, for memfs at a specific commit
+docker build -t emarteca/npm-filter --build-arg REPO_LINK=https://github.com/streamich/memfs --build-arg REPO_COMMIT=863f373185837141504c05ed19f7a253232e0905
+```
+
+#### Building generic docker (if you've updated the npm-filter source code)
 Note: you don't need to do this if you're using npm-filter out of the box. 
 In that case, you'll pull directly from DockerHub.
 ```

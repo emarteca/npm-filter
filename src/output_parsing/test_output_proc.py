@@ -2,6 +2,14 @@ import json
 import xmltodict
 import pandas as pd
  
+# parse the output of mocha xunit reporter to a csv
+# does not delete the original xunit output file
+# outputs include, per test (in this order):
+# - test suite it's a part of
+# - name of the test itself
+# - runtime of the test
+# - stdout of the test (if any)
+# - pass/fail status (could also be "pending")
 def parse_mocha_json_to_csv(output_file, new_output_file=None):
     if new_output_file is None:
         new_output_file = output_file.split(".")[0] + ".csv" # same name, csv file extension
@@ -35,6 +43,15 @@ def parse_mocha_json_to_csv(output_file, new_output_file=None):
     with open(new_output_file, 'w') as csv_file:
         csv_file.write(res_df.to_csv())
 
+# parse the output of jest xunit reporter to a csv
+# this does the same thing as for mocha, to produce the same data fields
+# does not delete the original xunit output file
+# outputs include, per test (in this order):
+# - test suite it's a part of
+# - name of the test itself
+# - runtime of the test
+# - stdout of the test (if any)
+# - pass/fail status (could also be "pending")
 def parse_jest_json_to_csv(output_file, new_output_file=None):
     if new_output_file is None:
         new_output_file = output_file.split(".")[0] + ".csv" # same name, csv file extension
