@@ -180,6 +180,7 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 		test_json_summary[t] = test_output_rep
 	return( retcode, test_json_summary)
 
+# instrument the test command specified to make it produce verbose output to a file
 def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity_args, verbose_test_json, infra_verbosity_args_pos):
 	# replace the output file name with the custom output filename
 	# add an index to the filename for the 2nd,+ time the filename shows up
