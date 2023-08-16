@@ -40,9 +40,11 @@ class TestInfo:
 	}
 	# extra args, their position in the arg list, and any post-processing required
     # post-processing is a function that takes 2 arguments: input file and output file
+	# CAUTION: DO NOT PUT ANY MORE ARGS AFTER PLACEHOLDER_OUTPUT_FILE_NAME. THE CODE THAT
+	# PARSES THE OUTPUT RELIES ON THIS BEING THE *LAST* ARGUMENT
 	VERBOSE_TESTS_EXTRA_ARGS = {
 		"jest": {
-			"args": " --verbose --json --outputFile=$PLACEHOLDER_OUTPUT_FILE_NAME$",
+			"args": " --verbose --json -i --outputFile=$PLACEHOLDER_OUTPUT_FILE_NAME$",
 			"position":  -1,
 			"post_processing": TestOutputProc.parse_jest_json_to_csv
 		},
@@ -116,6 +118,8 @@ class TestInfo:
 		self.timed_out = False
 		self.VERBOSE_MODE = VERBOSE_MODE
 		self.test_verbosity_output = None
+		self.startTime = 0
+		self.endTime = 0
 
 	def set_test_command( self, test_command):
 		self.test_command = test_command
@@ -189,6 +193,8 @@ class TestInfo:
 		if self.test_verbosity_output:
 			json_rep["test_verbosity_output"] = self.test_verbosity_output
 		json_rep["timed_out"] = self.timed_out
+		json_rep["start_time"] = self.startTime
+		json_rep["end_time"] = self.endTime
 		return( json_rep)
 
 	def __str__(self):

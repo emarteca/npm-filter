@@ -2,6 +2,7 @@ import re
 import subprocess
 import json
 import os
+import time
 from TestInfo import *
 
 def run_command( commands, timeout=None):
@@ -114,8 +115,13 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 		for test_rep_index in range(crawler.TEST_COMMAND_REPEATS):
 			test_rep_id = "" if crawler.TEST_COMMAND_REPEATS == 1 else "testrep_" + str(test_rep_index)
 			print("Running rep " + str(test_rep_index) + " of " + str(crawler.TEST_COMMAND_REPEATS - 1) + ": " + manager + t)
+			# time how long the next line takes
+			startTime = time.time()
 			error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
+			endTime = time.time()
 			test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
+			test_info.startTime = startTime
+			test_info.endTime = endTime
 			test_info.set_test_command( pkg_json.get("scripts", {})[t])
 			test_info.compute_test_infras()
 			test_info.compute_nested_test_commands( test_scripts)
