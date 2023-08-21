@@ -123,14 +123,19 @@ class TestInfo:
 	def set_test_verbosity_output( self, verbose_output):
 		self.test_verbosity_output = verbose_output
 
+	def get_test_infras_list( test_command, manager):
+		test_infras = []
+		test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, test_command, manager) ]
+		test_infras += [ ri for ri in TestInfo.TRACKED_RUNNERS if called_in_command(ri, test_command, manager) ]
+		return( test_infras)
+
 	def compute_test_infras( self):
 		self.test_infras = []
 		self.test_covs = []
 		self.test_lints = []
 		self.nested_test_commands = []
 		if self.test_command:
-			self.test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.manager) ]
-			self.test_infras += [ ri for ri in TestInfo.TRACKED_RUNNERS if called_in_command(ri, self.test_command, self.manager) ]
+			self.test_infras += TestInfo.get_test_infras_list(self.test_command, self.manager)
 			self.test_covs += [ TestInfo.TRACKED_COVERAGE[ti] for ti in TestInfo.TRACKED_COVERAGE if called_in_command(ti, self.test_command, self.manager) ]
 			self.test_lints += [ TestInfo.TRACKED_LINTERS[ti] for ti in TestInfo.TRACKED_LINTERS if called_in_command(ti, self.test_command, self.manager) ]
 		self.test_infras = list(set(self.test_infras))
