@@ -2,6 +2,7 @@ import re
 import subprocess
 import json
 import os
+import time
 from TestInfo import *
 
 def run_command( commands, timeout=None):
@@ -117,6 +118,9 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 			test_command = pkg_json.get("scripts", {})[t]
 			test_infras = TestInfo.get_test_infras_list(test_command, manager)
 			test_verbosity_output = {}
+			# initialize these variables for timing; they'll be set before/after running test commands (resp)
+			start_time = 0
+			end_time = 0
 			# if we're in verbose testing mode (i.e. getting all timing info for each test, etc)
 			# then, we rerun the test commands with all the commands for adding verbose_mode to 
 			# each of the test infras involved (individually)
@@ -145,7 +149,10 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 					with open("package.json", 'w') as f:
 						json.dump( pkg_json, f)
 					print("Running verbosity: " + manager + infra_verbosity_command)
+					# time how long the next line takes
+					start_time = time.time()
 					error, output, retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
+					end_time = time.time()
 					# if there's post-processing to be done
 					if not infra_verbosity_post_proc is None:
 						for out_file_obj in out_files:
@@ -163,12 +170,16 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 				run_command( "mv TEMP_package.json_TEMP package.json")
 			# not verbose test mode -- just run the normal test command
 			else: 
+				start_time = time.time()
 				error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
+				end_time = time.time()
 			test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
 			# the below info on the test infras etc is independent of verbose mode: just based on the command itself
 			test_info.set_test_command( test_command)
 			test_info.compute_test_infras()
 			test_info.compute_nested_test_commands( test_scripts)
+			test_info.start_time = start_time
+			test_info.end_time = end_time
 			# note: if we're running in verbose mode, then the stats will be that of the last executed verbose mode 
 			# instrumented version of the test command
 			test_info.compute_test_stats()
