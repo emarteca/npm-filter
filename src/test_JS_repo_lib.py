@@ -169,7 +169,9 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 				# put the package.json back
 				run_command( "mv TEMP_package.json_TEMP package.json")
 			# not verbose test mode -- just run the normal test command
-			else: 
+			# if start and end time are both still zero then no instrumented test commands ran
+			# and so we also rerun here
+			if (not crawler.TEST_VERBOSE_ALL_OUTPUT) or (start_time == 0 and end_time == 0): 
 				start_time = time.time()
 				error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
 				end_time = time.time()
