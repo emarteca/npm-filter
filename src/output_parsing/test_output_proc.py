@@ -39,9 +39,12 @@ def parse_mocha_json_to_csv(output_file, new_output_file=None):
             test_stdout += [""]
             test_pass_fail += ["passed"]
     res_df = pd.DataFrame(list(zip(test_suites, test_names, test_runtimes, test_stdout, test_pass_fail)))
-    res_df.columns = ["test_suite", "name", "runtime", "stdout", "pass_fail"]
-    with open(new_output_file, 'w') as csv_file:
-        csv_file.write(res_df.to_csv())
+    try:
+        res_df.columns = ["test_suite", "name", "runtime", "stdout", "pass_fail"]
+        with open(new_output_file, 'w') as csv_file:
+            csv_file.write(res_df.to_csv())
+    except:
+        print("ERROR in data for file " + new_output_file + " -- no output printed. skipping to next step...")
 
 # parse the output of jest xunit reporter to a csv
 # this does the same thing as for mocha, to produce the same data fields
