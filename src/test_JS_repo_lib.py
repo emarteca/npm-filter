@@ -2,6 +2,7 @@ import re
 import subprocess
 import json
 import os
+import time
 from TestInfo import *
 
 def run_command( commands, timeout=None):
@@ -114,20 +115,19 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 		for test_rep_index in range(crawler.TEST_COMMAND_REPEATS):
 			test_rep_id = "" if crawler.TEST_COMMAND_REPEATS == 1 else "testrep_" + str(test_rep_index)
 			print("Running rep " + str(test_rep_index) + " of " + str(crawler.TEST_COMMAND_REPEATS - 1) + ": " + manager + t)
-			error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
-			test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
-			test_info.set_test_command( pkg_json.get("scripts", {})[t])
-			test_info.compute_test_infras()
-			test_info.compute_nested_test_commands( test_scripts)
-			test_info.compute_test_stats()
+			test_command = pkg_json.get("scripts", {})[t]
+			test_infras = TestInfo.get_test_infras_list(test_command, manager)
+			test_verbosity_output = {}
+			# initialize these variables for timing; they'll be set before/after running test commands (resp)
+			start_time = 0
+			end_time = 0
 			# if we're in verbose testing mode (i.e. getting all timing info for each test, etc)
 			# then, we rerun the test commands with all the commands for adding verbose_mode to 
 			# each of the test infras involved (individually)
 			if crawler.TEST_VERBOSE_ALL_OUTPUT:
 				# we're gonna be adding our new custom scripts for verbosity testing
 				run_command( "mv package.json TEMP_package.json_TEMP")
-				test_verbosity_output = {}
-				for verbosity_index, test_infra in enumerate(test_info.test_infras):
+				for verbosity_index, test_infra in enumerate(test_infras):
 					verbose_test_json = crawler.output_dir + "/" \
 										+ "repo_" + repo_name + "_" \
 										+ "test_" + str(test_index) + "_"\
@@ -142,14 +142,17 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 					infra_verbosity_args = infra_verbosity_config.get("args", "")
 					infra_verbosity_args_pos = infra_verbosity_config.get("position", -1) # default position is at the end
 					infra_verbosity_post_proc = infra_verbosity_config.get("post_processing", None)
-					infra_verbosity_command, out_files = instrument_test_command_for_verbose(test_info.test_command, test_infra, infra_verbosity_args, 
+					infra_verbosity_command, out_files = instrument_test_command_for_verbose(test_command, test_infra, infra_verbosity_args, 
 																					verbose_test_json, infra_verbosity_args_pos)
 					verbosity_script_name = "instrumented_verbosity_command_" + str(verbosity_index)
 					pkg_json["scripts"][verbosity_script_name] = infra_verbosity_command
 					with open("package.json", 'w') as f:
 						json.dump( pkg_json, f)
 					print("Running verbosity: " + manager + infra_verbosity_command)
-					verb_error, verb_output, verb_retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
+					# time how long the next line takes
+					start_time = time.time()
+					error, output, retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
+					end_time = time.time()
 					# if there's post-processing to be done
 					if not infra_verbosity_post_proc is None:
 						for out_file_obj in out_files:
@@ -160,12 +163,30 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 					test_verbosity_infra["command"] = infra_verbosity_command
 					test_verbosity_infra["output_files"] = out_files
 					if crawler.VERBOSE_MODE:
-						test_verbosity_infra["test_debug"] = "\nError output: " + verb_error.decode('utf-8') \
-															+ "\nOutput stream: " + verb_output.decode('utf-8')
+						test_verbosity_infra["test_debug"] = "\nError output: " + error.decode('utf-8') \
+															+ "\nOutput stream: " + output.decode('utf-8')
 					test_verbosity_output[test_infra] = test_verbosity_infra
-				test_info.set_test_verbosity_output(test_verbosity_output)
 				# put the package.json back
 				run_command( "mv TEMP_package.json_TEMP package.json")
+			# not verbose test mode -- just run the normal test command
+			# if start and end time are both still zero then no instrumented test commands ran
+			# and so we also rerun here
+			if (not crawler.TEST_VERBOSE_ALL_OUTPUT) or (start_time == 0 and end_time == 0): 
+				start_time = time.time()
+				error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
+				end_time = time.time()
+			test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
+			# the below info on the test infras etc is independent of verbose mode: just based on the command itself
+			test_info.set_test_command( test_command)
+			test_info.compute_test_infras()
+			test_info.compute_nested_test_commands( test_scripts)
+			test_info.start_time = start_time
+			test_info.end_time = end_time
+			# note: if we're running in verbose mode, then the stats will be that of the last executed verbose mode 
+			# instrumented version of the test command
+			test_info.compute_test_stats()
+			if crawler.TEST_VERBOSE_ALL_OUTPUT:
+				test_info.set_test_verbosity_output(test_verbosity_output)
 			# if we're not doing any repeats then don't make another layer of jsons
 			if crawler.TEST_COMMAND_REPEATS == 1:
 				test_output_rep = test_info.get_json_rep()
@@ -174,6 +195,7 @@ def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 		test_json_summary[t] = test_output_rep
 	return( retcode, test_json_summary)
 
+# instrument the test command specified to make it produce verbose output to a file
 def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity_args, verbose_test_json, infra_verbosity_args_pos):
 	# replace the output file name with the custom output filename
 	# add an index to the filename for the 2nd,+ time the filename shows up
@@ -203,16 +225,30 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 	# split into sub-commands
 	command_split_chars = [ "&&", ";"]
 	infra_calls = test_script.split(test_infra)
-	instrumented_test_command = []
-	for i, infra_call in enumerate(infra_calls):
+	real_calls = []
+	for maybe_call in infra_calls:
 		# if the last char in the string is not whitespace and not a command delimiter,
 		# and it's not the last string in the split
 		# then it's a string that is appended to the front of the name of the infra (e.g., "\"jest\"") 
 		# and not a call 
-		if i < len(infra_calls) - 1 and infra_call != "" and (not infra_call[-1].isspace()) and (not any([infra_call.endswith(s) for s in command_split_chars])):
-			instrumented_test_command += [ infra_call ]
-			continue
-
+		# rebuild it
+		if i < len(infra_calls) - 1 and maybe_call != "" and (not maybe_call[-1].isspace()) and (not any([maybe_call.endswith(s) for s in command_split_chars])):
+			if len(real_calls) > 0:
+				real_calls[-1] += test_infra + maybe_call
+				continue
+		# if the first char in the string is not whitespace and not a command delimiter,
+		# and it's not the first string in the split
+		# then it's a string that is appended to the back of the name of the infra (e.g., jest".config.js")
+		# and not a call either
+		# rebuild it
+		if i > 0 and maybe_call != "" and (not maybe_call[0].isspace()) and (not any([maybe_call.startswith(s) for s in command_split_chars])):
+			if len(real_calls) > 0:
+				real_calls[-1] += test_infra + maybe_call
+				continue
+		real_calls += [ maybe_call ]
+	infra_calls = real_calls
+	instrumented_test_command = []
+	for i, infra_call in enumerate(infra_calls):
 		# if the current call is empty string
 		# then this is the call to the testing infra and the next is the arguments 
 		# so, skip this one
@@ -220,8 +256,8 @@ def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity
 		if infra_call == "" and i < len(infra_calls) - 1:
 			instrumented_test_command += [ "" ]
 			continue
-		# if the first call is non-empty, then it's pre-test-infra and we skip it too
-		elif infra_call != "" and i == 0:
+		# if the first call is non-empty and there's more than one call, then it's pre-test-infra and we skip it too
+		elif len(infra_calls) > 1 and infra_call != "" and i == 0:
 			instrumented_test_command += [ "" ]
 			continue
 		# get the arguments, splitting off from any other non-test commands that might be
@@ -281,7 +317,40 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	else:
 		print( "Package repository already exists. Using existing directory: " + repo_name)
 	
+	# diagnose the repo dir
+	return( diagnose_repo_name(repo_name, crawler, json_out, cur_dir, commit_SHA=commit_SHA))
 
+def diagnose_local_dir(repo_dir, crawler):
+	json_out = {}
+	repo_name = ""
+	cur_dir = os.getcwd()
+	repo_name = repo_dir.split("/")[-1]
+	if not os.path.isdir(repo_dir):
+		print("ERROR using local directory: " + repo_dir + " invalid directory path")
+		json_out["setup"] = {}
+		json_out["setup"]["local_dir_ERROR"] = True
+		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	
+	print("Diagnosing: " + repo_name + " --- from: " + repo_dir)
+	if not os.path.isdir("TESTING_REPOS"):
+		os.mkdir("TESTING_REPOS")
+	os.chdir("TESTING_REPOS")
+
+	# if the repo already exists, dont clone it
+	if not os.path.isdir( repo_name):
+		print( "Copying package directory")
+		error, output, retcode = run_command( "cp -r " + repo_dir + " " + repo_name)
+		if retcode != 0:
+			print("ERROR copying the directory. Exiting now.")
+			json_out["setup"] = {}
+			json_out["setup"]["local_dir_ERROR"] = True
+			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	else:
+		print( "Package directory already exists. Using existing directory: " + repo_name)
+	# diagnose the repo dir
+	return( diagnose_repo_name(repo_name, crawler, json_out, cur_dir))
+
+def diagnose_repo_name(repo_name, crawler, json_out, cur_dir, commit_SHA=None):
 	# move into the repo and begin testing
 	os.chdir( repo_name)
 
@@ -307,6 +376,11 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 
 	manager = ""
+	# if there's custom lock files, copy them into the repo (repo is "." since we're in the repo currently)
+	if crawler.CUSTOM_LOCK_FILES != []:
+		for custom_lock in crawler.CUSTOM_LOCK_FILES:
+			run_command("cp " + custom_lock + " .")
+
 	# first, check if there is a custom install
 	# this runs custom scripts the same way as the scripts_over_code below; only 
 	# difference is it's before the npm-filter run

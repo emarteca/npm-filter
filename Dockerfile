@@ -26,7 +26,6 @@ COPY get_rel_project_reqs.js /home/npm-filter
 RUN apt-get update \
 	&& apt-get -y install --no-install-recommends python3 git unzip vim curl gnupg xz-utils parallel
 
-RUN apt update
 RUN apt -y install python3-pip
 RUN pip3 install bs4 scrapy xmltodict pandas
 

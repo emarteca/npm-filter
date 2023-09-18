@@ -29,6 +29,7 @@
 		"ignored_substrings": ["--watch", "nodemon"],
 		"rm_after_cloning": false,
 		"scripts_over_code": [ ],
-		"QL_queries": [ ]
+		"QL_queries": [ ],
+		"custom_setup_scripts": [ ]
 	}
 }

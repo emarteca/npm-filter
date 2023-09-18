@@ -20,6 +20,7 @@ class NPMSpider(scrapy.Spider):
 	RM_AFTER_CLONING = False
 	SCRIPTS_OVER_CODE = []
 	CUSTOM_SETUP_SCRIPTS = []
+	CUSTOM_LOCK_FILES = []
 	QL_QUERIES = []
 
 	DO_INSTALL = True
@@ -85,6 +86,8 @@ class NPMSpider(scrapy.Spider):
 		cf_dict = config_json.get( "install", {})
 		self.DO_INSTALL = cf_dict.get("do_install", self.DO_INSTALL)
 		self.INSTALL_TIMEOUT = cf_dict.get("timeout", self.INSTALL_TIMEOUT)
+		self.CUSTOM_LOCK_FILES = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
+											for p in cf_dict.get( "custom_lock_files", self.CUSTOM_LOCK_FILES)]
 
 		cf_dict = config_json.get( "build", {})
 		self.TRACK_BUILD = cf_dict.get("track_build", self.TRACK_BUILD)

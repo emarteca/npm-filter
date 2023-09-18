@@ -20,6 +20,11 @@ def get_repo_and_SHA_from_repo_link(repo):
 		commit_SHA = split_res[1]
 	return(split_res[0], commit_SHA)
 
+# same format as getting the name from the repo link: we want the name of the dir, 
+# so after the last slash (and if there's no slash the whole name is returned)
+def get_name_from_path(repo_local_path):
+	return( repo_local_path.split("/")[-1])
+
 
 class RepoWalker():
 	name = "npm-pkgs"
@@ -27,6 +32,7 @@ class RepoWalker():
 	RM_AFTER_CLONING = False
 	SCRIPTS_OVER_CODE = []
 	CUSTOM_SETUP_SCRIPTS = []
+	CUSTOM_LOCK_FILES = []
 	QL_QUERIES = []
 
 	DO_INSTALL = True
@@ -45,10 +51,10 @@ class RepoWalker():
 	TRACKED_BUILD_COMMANDS = ["build", "compile", "init"]
 
 	# timeouts for stages, in seconds
-	INSTALL_TIMEOUT = 1000
+	INSTALL_TIMEOUT = 10800 # 3 hours
 	# note: these are timeouts per *script* in the stage of the process
-	BUILD_TIMEOUT = 1000
-	TEST_TIMEOUT = 1000
+	BUILD_TIMEOUT = 10800 # 3 hours
+	TEST_TIMEOUT = 10800 # 3 hours
 
 	QL_CUTOFF = 5 # ignore if there are < 5 results
 	
@@ -58,6 +64,9 @@ class RepoWalker():
 
 	def set_repo_links(self, repo_links):
 		self.repo_links = repo_links
+
+	def set_local_repo_path(self, repo_local_dir):
+		self.repo_local_dir = repo_local_dir
 
 	def set_up_config( self, config_file):
 		if not os.path.exists(config_file):
@@ -93,6 +102,8 @@ class RepoWalker():
 		cf_dict = config_json.get( "install", {})
 		self.DO_INSTALL = cf_dict.get("do_install", self.DO_INSTALL)
 		self.INSTALL_TIMEOUT = cf_dict.get("timeout", self.INSTALL_TIMEOUT)
+		self.CUSTOM_LOCK_FILES = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
+											for p in cf_dict.get( "custom_lock_files", self.CUSTOM_LOCK_FILES)]
 
 		cf_dict = config_json.get( "build", {})
 		self.TRACK_BUILD = cf_dict.get("track_build", self.TRACK_BUILD)
@@ -123,21 +134,32 @@ class RepoWalker():
 				json_results["metadata"]["repo_commit_SHA"] = commit_SHA
 			with open(self.output_dir + "/" + package_name + '__results.json', 'w') as f:
 				json.dump( json_results, f, indent=4)
+		if self.repo_local_dir:
+			package_name = get_name_from_path( self.repo_local_dir)
+			json_results = diagnose_local_dir(self.repo_local_dir, self)
+			json_results["metadata"] = {}
+			json_results["metadata"]["repo_local_dir"] = repo_local_dir
+			with open(self.output_dir + "/" + package_name + '__results.json', 'w') as f:
+				json.dump( json_results, f, indent=4)
 
 
 argparser = argparse.ArgumentParser(description="Diagnose github repos, from a variety of sources")
 argparser.add_argument("--repo_list_file", metavar="rlistfile", type=str, nargs='?', help="file with list of github repo links")
 argparser.add_argument("--repo_link", metavar="rlink", type=str, nargs='?', help="single repo link")
+argparser.add_argument("--repo_local_dir", metavar="rlocallink", type=str, nargs='?', help="path to local directory that has the repo code")
 argparser.add_argument("--repo_link_and_SHA", metavar="rlink_and_SHA", type=str, nargs='*', help="single repo link, with optional commit SHA")
 argparser.add_argument("--config", metavar="config_file", type=str, nargs='?', help="path to config file")
 argparser.add_argument("--output_dir", metavar="output_dir", type=str, nargs='?', help="directory for results to be output to")
 args = argparser.parse_args()
 
 config = args.config if args.config else ""
-
 output_dir = args.output_dir if args.output_dir else "."
 
 walker = RepoWalker(config_file=config, output_dir=output_dir)
+
+repo_local_dir = None
+if args.repo_local_dir:
+	repo_local_dir = os.path.abspath(args.repo_local_dir)
 
 repo_links = []
 if args.repo_list_file:
@@ -156,6 +178,7 @@ if args.repo_link_and_SHA:
 	# so we join all the repo_link args into a space-delimited string
 	repo_links += [' '.join(args.repo_link_and_SHA)]
 walker.set_repo_links( repo_links)
+walker.set_local_repo_path(repo_local_dir)
 walker.iterate_over_repos()
 	
 
