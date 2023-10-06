@@ -13,7 +13,12 @@
 		"timeout": 1000
 	},
 	"test": {
+		"test_command_repeats": 1,
 		"track_tests": true,
+		"test_verbose_all_output": {
+			"do_verbose_tracking": false,
+			"verbose_json_output_file": "verbose_test_report.json"
+		},
 		"tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench",
 								  "mocha", "jest", "ava", "tap", "jasmine"],
 		"timeout": 1000
@@ -24,6 +29,7 @@
 		"ignored_substrings": ["--watch", "nodemon"],
 		"rm_after_cloning": false,
 		"scripts_over_code": [ ],
-		"QL_queries": [ ]
+		"QL_queries": [ ],
+		"custom_setup_scripts": [ ]
 	}
 }

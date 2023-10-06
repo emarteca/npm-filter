@@ -1,0 +1,112 @@
+name: Test NPMFilter End to End on a Project with custom-built containers per-project 
+
+on:
+  workflow_dispatch:
+    inputs:
+        project_url:
+            description: 'GitHub suffix of project to test (username/project)'
+            required: true
+            type: string
+        project_sha:
+            description: 'SHA of project to test'
+            required: true
+            type: string
+  workflow_call:
+    inputs:
+        project_url:
+            description: 'GitHub suffix of project to test (username/project)'
+            required: true
+            type: string
+        project_sha:
+            description: 'SHA of project to test'
+            required: true
+            type: string
+jobs:
+  execute:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Build NPMFilter container
+        run: |
+           if [ -f "project-overrides/${OrgName}-${ProjectName}.sh" ]; then
+            CUSTOM_INSTALL_SCRIPT="--build-arg CUSTOM_INSTALL_SCRIPT=project-overrides/${OrgName}-${ProjectName}.sh"
+           fi
+           docker build -t npmfilter --build-arg REPO_LINK=https://github.com/${{ inputs.project_url }} --build-arg REPO_COMMIT=${{ inputs.project_sha }} $CUSTOM_INSTALL_SCRIPT .
+      - name: Run NPMFilter
+        id: run-npm-filter
+        env:
+            SHA: ${{ inputs.project_sha }}
+            URL: ${{ inputs.project_url }}
+            DOCKER_IMAGE: npmfilter:latest
+        run: |
+            IFS="/" read -r -a projectArray <<< "$URL"
+            OrgName=${projectArray[0]} 
+            ProjectName=${projectArray[1]}
+            LogDir=${URL//\//-}
+            echo "LogDir=$LogDir" >> $GITHUB_OUTPUT
+
+            echo "Running NPMFilter on $OrgName/$ProjectName@$SHA"
+
+            mkdir -p docker_configs/
+            cat >docker_configs/debug_filter_config.json <<EOL
+            {
+              "install": {
+                      "timeout": 1000,
+                      "do_install": true
+              },
+              "dependencies": {
+                      "track_deps": false,
+                      "include_dev_deps": false
+              },
+              "build": {
+                      "track_build": true,
+                      "tracked_build_commands": ["build", "compile", "init"],
+                      "timeout": 1000
+              },
+              "test": {
+                      "track_tests": true,
+                      "tracked_test_commands": ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench",
+                                                                        "mocha", "jest", "ava", "tap", "jasmine"],
+                      "test_verbose_all_output": {
+                        "do_verbose_tracking": true,
+                        "verbose_json_output_file": "verbose_test_report.json"
+                      },                                                                    
+                      "timeout": 1000
+              },
+              "meta_info": {
+                      "VERBOSE_MODE": true,
+                      "ignored_commands": ["watch", "debug"],
+                      "ignored_substrings": ["--watch", "nodemon"],
+                      "rm_after_cloning": false,
+                      "scripts_over_code": [ ],
+                      "QL_queries": [ ]
+              }
+            }
+            EOL
+
+            CUR_DIR=$(pwd)
+            # Run NPMFilter
+            ./runDocker.sh python3 src/diagnose_github_repo.py --repo_link_and_SHA https://github.com/$URL $SHA --config docker_configs/debug_filter_config.json
+
+            # Get tests overview
+            python3 output_proc_scripts/count_tests_run.py npm_filter_docker_results/ > tests-overview.csv
+
+            # Check if tests were found
+            TestData=$(cat tests-overview.csv)
+            IFS="," read -r -a testCount <<< $(python3 output_proc_scripts/count_tests_run.py npm_filter_docker_results/)
+            TestsRun=${testCount[0]}
+            if [ $TestsRun -le 2 ]; then
+                echo "ERROR: No tests found."
+                exit -1
+            else
+                echo "OK: ${TestsRun} tests found!"
+            fi
+
+            echo "LOGNAME=results-${OrgName}-${ProjectName}-${SHA}" >> "$GITHUB_OUTPUT"
+      - name: Upload output
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ steps.run-npm-filter.outputs.LOGNAME }}
+          path: npm_filter_docker_results

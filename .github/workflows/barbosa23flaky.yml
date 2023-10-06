@@ -1,0 +1,36 @@
+name: Test on Barbosa23 JS projects with >=5 flaky tests
+
+on:
+  push
+
+env:
+  PROJECTS_JSON: |
+    { projects: [
+      {"project_url": "appium/appium", "project_sha": "2d124323c5973ef9d3e190f7401e67106886ffd4"},
+      {"project_url": "badges/shields", "project_sha": "14892e3943a4677332618d8b9f584766f7940ee7"},
+      {"project_url": "facebook/react-native", "project_sha": "af99a6890b84713d002fbbd872f10fe2e6304861"},
+      {"project_url": "FlowCrypt/flowcrypt-browser", "project_sha": "92d0188c66572d2c14ef4ed24602b8a58445630c"},
+      {"project_url": "meteor/meteor", "project_sha": "dc38e4325dcd88fb3c6d1be1639680c6ff6f5e80"},
+      {"project_url": "yui/yui3", "project_sha": "25264e3629b1c07fb779d203c4a25c0879ec862c"}
+    ]}
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix-projects: ${{ steps.set-matrix.outputs.matrix-projects }}
+    steps:
+      - id: set-matrix
+        run: |
+          echo "matrix-projects<<__EOF__" >> $GITHUB_OUTPUT
+          echo $PROJECTS_JSON >> $GITHUB_OUTPUT
+          echo "__EOF__" >> $GITHUB_OUTPUT
+  execute:
+    needs: [build-matrix]
+    strategy:
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix-projects) }}
+      fail-fast: false
+    uses: ./.github/workflows/end2endCustomContainers.yml
+    with:
+      project_url: ${{ matrix.projects.project_url }}
+      project_sha: ${{ matrix.projects.project_sha }}

@@ -1,0 +1,6 @@
+{
+	"test": {
+		"test_command_repeats": 1,
+		"test_verbose_all_output": { "do_verbose_tracking": true }
+	}
+}

@@ -3,6 +3,7 @@ QLDBs/*
 items.json
 *__page_data.html
 *__results.json
+*_verbose_test_report.json
 local_mount/*
 **/node_modules
 

@@ -19,6 +19,8 @@ class NPMSpider(scrapy.Spider):
 	VERBOSE_MODE = False
 	RM_AFTER_CLONING = False
 	SCRIPTS_OVER_CODE = []
+	CUSTOM_SETUP_SCRIPTS = []
+	CUSTOM_LOCK_FILES = []
 	QL_QUERIES = []
 
 	DO_INSTALL = True
@@ -26,6 +28,9 @@ class NPMSpider(scrapy.Spider):
 	COMPUTE_DEP_LISTS = False
 	TRACK_BUILD = True
 	TRACK_TESTS = True
+	TEST_VERBOSE_ALL_OUTPUT = False
+	TEST_VERBOSE_OUTPUT_JSON = "verbose_test_report.json"
+	TEST_COMMAND_REPEATS = 1
 
 	TRACKED_TEST_COMMANDS = ["test", "unit", "cov", "ci", "integration", "lint", "travis", "e2e", "bench", 
 							 "mocha", "jest", "ava", "tap", "jasmine"]
@@ -35,7 +40,7 @@ class NPMSpider(scrapy.Spider):
 
 	# timeouts for stages, in seconds
 	INSTALL_TIMEOUT = 1000
-	# note: these are timeouts pers *script* in the stage of the process
+	# note: these are timeouts per *script* in the stage of the process
 	BUILD_TIMEOUT = 1000
 	TEST_TIMEOUT = 1000
 	
@@ -44,7 +49,7 @@ class NPMSpider(scrapy.Spider):
 			self.packages = packages
 		self.start_urls = ['https://www.npmjs.com/package/' + pkg for pkg in self.packages]
 		self.set_up_config( config_file)
-		self.output_dir = output_dir
+		self.output_dir = os.path.abspath(output_dir)
 		super(NPMSpider, self).__init__(*args, **kwargs)
 
 	def set_up_config( self, config_file):
@@ -71,6 +76,8 @@ class NPMSpider(scrapy.Spider):
 											for p in cf_dict.get( "scripts_over_code", self.SCRIPTS_OVER_CODE)]
 		self.QL_QUERIES = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
 											for p in cf_dict.get( "QL_queries", self.QL_QUERIES)]
+		self.CUSTOM_SETUP_SCRIPTS = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
+											for p in cf_dict.get( "custom_setup_scripts", self.CUSTOM_SETUP_SCRIPTS)]
 
 		cf_dict = config_json.get( "dependencies", {})
 		self.INCLUDE_DEV_DEPS = cf_dict.get("include_dev_deps", self.INCLUDE_DEV_DEPS)
@@ -79,6 +86,8 @@ class NPMSpider(scrapy.Spider):
 		cf_dict = config_json.get( "install", {})
 		self.DO_INSTALL = cf_dict.get("do_install", self.DO_INSTALL)
 		self.INSTALL_TIMEOUT = cf_dict.get("timeout", self.INSTALL_TIMEOUT)
+		self.CUSTOM_LOCK_FILES = [ os.path.abspath(os.path.dirname(config_file if config_file else __file__)) + "/" + p 
+											for p in cf_dict.get( "custom_lock_files", self.CUSTOM_LOCK_FILES)]
 
 		cf_dict = config_json.get( "build", {})
 		self.TRACK_BUILD = cf_dict.get("track_build", self.TRACK_BUILD)
@@ -89,6 +98,10 @@ class NPMSpider(scrapy.Spider):
 		self.TEST_TIMEOUT = cf_dict.get("timeout", self.TEST_TIMEOUT)
 		self.TRACKED_TEST_COMMANDS = cf_dict.get("tracked_test_commands", self.TRACKED_TEST_COMMANDS)
 		self.TRACK_TESTS = cf_dict.get("track_tests", self.TRACK_TESTS)
+		self.TEST_COMMAND_REPEATS = cf_dict.get("test_command_repeats", self.TEST_COMMAND_REPEATS)
+		test_verbose_config = cf_dict.get("test_verbose_all_output", {})
+		self.TEST_VERBOSE_ALL_OUTPUT = test_verbose_config.get("do_verbose_tracking", self.TEST_VERBOSE_ALL_OUTPUT)
+		self.TEST_VERBOSE_OUTPUT_JSON = test_verbose_config.get("verbose_json_output_file", self.TEST_VERBOSE_OUTPUT_JSON)
 
 	def parse(self, response):
 		# TODO should we handle specific response codes?

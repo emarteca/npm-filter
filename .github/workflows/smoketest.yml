@@ -1,0 +1,40 @@
+name: Test NPMFilter End to End on a toy project
+
+on:
+  push:
+
+env:
+  PROJECTS_JSON: |
+    { projects: [
+    {"project_url": "mtiller/ts-jest-sample", "project_sha": "6739c576d4590c53296f3e4fcdf3074e582ae297"},
+    ]}
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix-projects: ${{ steps.set-matrix.outputs.matrix-projects }}
+    steps:
+      - id: set-matrix
+        run: |
+          echo "matrix-projects<<__EOF__" >> $GITHUB_OUTPUT
+          echo $PROJECTS_JSON >> $GITHUB_OUTPUT
+          echo "__EOF__" >> $GITHUB_OUTPUT
+  execute-specialized-container:
+    needs: [build-matrix]
+    strategy:
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix-projects) }}
+      fail-fast: false
+    uses: ./.github/workflows/end2endCustomContainers.yml
+    with:
+      project_url: ${{ matrix.projects.project_url }}
+      project_sha: ${{ matrix.projects.project_sha }}
+  execute-generic-container:
+    needs: [build-matrix]
+    strategy:
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix-projects) }}
+      fail-fast: false
+    uses: ./.github/workflows/end2end.yml
+    with:
+      project_url: ${{ matrix.projects.project_url }}
+      project_sha: ${{ matrix.projects.project_sha }}

@@ -2,6 +2,8 @@ import re
 import subprocess
 import json
 import os
+import time
+from TestInfo import *
 
 def run_command( commands, timeout=None):
 	for command in commands.split(";"):
@@ -100,7 +102,7 @@ def run_build( manager, pkg_json, crawler):
 			build_script_list += [b]
 	return( retcode, build_script_list, build_debug)
 
-def run_tests( manager, pkg_json, crawler):
+def run_tests( manager, pkg_json, crawler, repo_name, cur_dir="."):
 	test_json_summary = {}
 	retcode = 0
 	if len(crawler.TRACKED_TEST_COMMANDS) == 0:
@@ -108,248 +110,173 @@ def run_tests( manager, pkg_json, crawler):
 	test_scripts = [t for t in pkg_json.get("scripts", {}).keys() if not set([ t.find(t_com) for t_com in crawler.TRACKED_TEST_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([t.find(ig_com) for ig_com in crawler.IGNORED_COMMANDS]) == {-1}]
 	test_scripts = [t for t in test_scripts if set([pkg_json.get("scripts", {})[t].find(ig_sub) for ig_sub in crawler.IGNORED_SUBSTRINGS]) == {-1}]
-	for t in test_scripts:
-		print("Running: " + manager + t)
-		error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
-		test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
-		test_info.set_test_command( pkg_json.get("scripts", {})[t])
-		test_info.compute_test_infras()
-		test_info.compute_nested_test_commands( test_scripts)
-		test_info.compute_test_stats()
-		# print( test_info[t])
-		# print( get_test_info(error, output))
-		test_json_summary[t] = test_info.get_json_rep()
+	for test_index, t in enumerate(test_scripts):
+		test_output_rep = {}
+		for test_rep_index in range(crawler.TEST_COMMAND_REPEATS):
+			test_rep_id = "" if crawler.TEST_COMMAND_REPEATS == 1 else "testrep_" + str(test_rep_index)
+			print("Running rep " + str(test_rep_index) + " of " + str(crawler.TEST_COMMAND_REPEATS - 1) + ": " + manager + t)
+			test_command = pkg_json.get("scripts", {})[t]
+			test_infras = TestInfo.get_test_infras_list(test_command, manager)
+			test_verbosity_output = {}
+			# initialize these variables for timing; they'll be set before/after running test commands (resp)
+			start_time = 0
+			end_time = 0
+			# if we're in verbose testing mode (i.e. getting all timing info for each test, etc)
+			# then, we rerun the test commands with all the commands for adding verbose_mode to 
+			# each of the test infras involved (individually)
+			if crawler.TEST_VERBOSE_ALL_OUTPUT:
+				# we're gonna be adding our new custom scripts for verbosity testing
+				run_command( "mv package.json TEMP_package.json_TEMP")
+				for verbosity_index, test_infra in enumerate(test_infras):
+					verbose_test_json = crawler.output_dir + "/" \
+										+ "repo_" + repo_name + "_" \
+										+ "test_" + str(test_index) + "_"\
+										+ "infra_" + str(verbosity_index) + "_" \
+										+ ("" if test_rep_id == "" else test_rep_id + "_") \
+										+ crawler.TEST_VERBOSE_OUTPUT_JSON
+					infra_verbosity_config = TestInfo.VERBOSE_TESTS_EXTRA_ARGS.get(test_infra)
+					if not infra_verbosity_config: # checks if it's an empty object
+						print("TEST VERBOSE MODE: unsupported test infra " + test_infra)
+						test_verbosity_output[test_infra] = { "error": True }
+						continue
+					infra_verbosity_args = infra_verbosity_config.get("args", "")
+					infra_verbosity_args_pos = infra_verbosity_config.get("position", -1) # default position is at the end
+					infra_verbosity_post_proc = infra_verbosity_config.get("post_processing", None)
+					infra_verbosity_command, out_files = instrument_test_command_for_verbose(test_command, test_infra, infra_verbosity_args, 
+																					verbose_test_json, infra_verbosity_args_pos)
+					verbosity_script_name = "instrumented_verbosity_command_" + str(verbosity_index)
+					pkg_json["scripts"][verbosity_script_name] = infra_verbosity_command
+					with open("package.json", 'w') as f:
+						json.dump( pkg_json, f)
+					print("Running verbosity: " + manager + infra_verbosity_command)
+					# time how long the next line takes
+					start_time = time.time()
+					error, output, retcode = run_command( manager + verbosity_script_name, crawler.TEST_TIMEOUT)
+					end_time = time.time()
+					# if there's post-processing to be done
+					if not infra_verbosity_post_proc is None:
+						for out_file_obj in out_files:
+							infra_verbosity_post_proc(out_file_obj["output_file"])
+					verbosity_index += 1
+					# get the output
+					test_verbosity_infra = {}
+					test_verbosity_infra["command"] = infra_verbosity_command
+					test_verbosity_infra["output_files"] = out_files
+					if crawler.VERBOSE_MODE:
+						test_verbosity_infra["test_debug"] = "\nError output: " + error.decode('utf-8') \
+															+ "\nOutput stream: " + output.decode('utf-8')
+					test_verbosity_output[test_infra] = test_verbosity_infra
+				# put the package.json back
+				run_command( "mv TEMP_package.json_TEMP package.json")
+			# not verbose test mode -- just run the normal test command
+			# if start and end time are both still zero then no instrumented test commands ran
+			# and so we also rerun here
+			if (not crawler.TEST_VERBOSE_ALL_OUTPUT) or (start_time == 0 and end_time == 0): 
+				start_time = time.time()
+				error, output, retcode = run_command( manager + t, crawler.TEST_TIMEOUT)
+				end_time = time.time()
+			test_info = TestInfo( (retcode == 0), error, output, manager, crawler.VERBOSE_MODE)
+			# the below info on the test infras etc is independent of verbose mode: just based on the command itself
+			test_info.set_test_command( test_command)
+			test_info.compute_test_infras()
+			test_info.compute_nested_test_commands( test_scripts)
+			test_info.start_time = start_time
+			test_info.end_time = end_time
+			# note: if we're running in verbose mode, then the stats will be that of the last executed verbose mode 
+			# instrumented version of the test command
+			test_info.compute_test_stats()
+			if crawler.TEST_VERBOSE_ALL_OUTPUT:
+				test_info.set_test_verbosity_output(test_verbosity_output)
+			# if we're not doing any repeats then don't make another layer of jsons
+			if crawler.TEST_COMMAND_REPEATS == 1:
+				test_output_rep = test_info.get_json_rep()
+			else:
+				test_output_rep[test_rep_id] = test_info.get_json_rep()
+		test_json_summary[t] = test_output_rep
 	return( retcode, test_json_summary)
 
-def called_in_command( str_comm, command, manager):
-	# command ends with command terminator (this list includes \0 end-of-string, 
-	# but this is not available to check in Python so we use endswith)
-	post_command_chars = [ "" ] if command.endswith(str_comm) else [ " ", "\t", ";"]
-	for pcc in post_command_chars:
-		check_comm = str_comm + pcc
-		if command.find( check_comm) == 0:
-			return( True)
-		if command.find( "&&" + check_comm) > -1 or command.find( "&& " + check_comm) > -1:
-			return( True)
-		if command.find( "cross-env NODE_ENV=test " + check_comm) > -1 or command.find( "cross-env NODE_ENV=production " + check_comm) > -1:
-			return( True)
-		if command.find( "cross-env CI=true " + check_comm) > -1:
-			return( True)
-		if command.find( "opener " + check_comm) > -1:
-			return( True)
-		if command.find( "gulp " + check_comm) > -1:
-			return( True)
-		if command.find( "nyc " + check_comm) > -1:
-			return( True)
-	return( False)
-
-def test_cond_count( test_output, regex_fct, condition, offset):
-	ptrn = re.compile( regex_fct(condition), re.MULTILINE)
-	results = ptrn.findall( test_output)
-	if offset is None:
-		return( len( results)) # just count the number of hits, each hit is an individual test (example: tap "ok" vs "not ok")
-	num_cond = 0
-	for r in results:
-		temp = r.split()
-		try:
-			num_cond += int( temp[temp.index(condition) + offset])  
-		except ValueError:
-			num_cond += 0
-	return( num_cond)
-
-
-class TestInfo:
-	OUTPUT_CHECKERS = {
-		"mocha": 
-			{
-				"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '.*',
-				"passing": ("passing", -1),
-				"failing": ("failing", -1)
-			},
-		"jest": 
-			{
-				"output_regex_fct" : lambda condition: r'Tests:.*\d+ ' + condition,
-				"passing": ("passed", -1),
-				"failing": ("failed", -1)
-			},
-		"tap": {
-				"output_regex_fct" : lambda condition: r'# ' + condition + '.*\d+',
-				"passing": ("pass", 1),
-				"failing": ("fail", 1)
-			},
-		"tap_raw": {
-				"output_regex_fct" : lambda condition: r'' + condition + ' \d+ - (?!.*time=).*$',
-				"passing": (r'^.*(?!not )ok', None), # this "passing" is a regex: count "ok" but not "not ok"
-				"failing":  (r'^.*not ok', None)
-			},
-		"ava": 
-		{
-			"output_regex_fct": lambda condition: r'.*\d+ tests? ' + condition,
-			"passing": ("passed", -2), 
-			"failing": ("failed", -2)
-		},
-		"ava_2": 
-			{
-				"output_regex_fct" : lambda condition: r'.*\d+ ' + condition + '$',
-				"passing": ("passed", -1),
-				"failing": ("failed", -1)
-			},
-	}
-	TRACKED_INFRAS = {
-		"mocha": {
-			"name": "mocha", 
-			"output_checkers": [ "mocha", "tap" ]
-		},
-		"jest": {
-			"name": "jest", 
-			"output_checkers": [ "jest" ]
-		},
-		"jasmine": {
-			"name": "jasmine", 
-			"output_checkers": [ "mocha" ]
-		},
-		"tap": {
-			"name": "tap", 
-			"output_checkers": [ "tap", "tap_raw" ]
-		},
-		"lab": {
-			"name": "lab", 
-			"output_checkers": []
-		},
-		"ava": {
-			"name": "ava", 
-			"output_checkers": [ "ava", "ava_2" ]
-		},
-		"gulp": {
-			"name": "gulp", 
-			"output_checkers": [ "mocha" ]
-		},
-	}
-	TRACKED_COVERAGE = {
-		"istanbul": "istanbul -- coverage testing",
-		"nyc": "nyc -- coverage testing",
-		"coveralls": "coveralls -- coverage testing",
-		"c8": "c8 -- coverage testing"
-	}
-	TRACKED_LINTERS = {
-		"eslint": "eslint -- linter",
-		"tslint": "tslint -- linter",
-		"xx": "xx -- linter",
-		"standard": "standard -- linter",
-		"prettier": "prettier -- linter",
-		"gulp lint": "gulp lint -- linter"
-	}
-
-	TRACKED_RUNNERS = [ "node", "babel-node", "grunt" ]
-
-	def __init__(self, success, error_stream, output_stream, manager, VERBOSE_MODE):
-		self.success = success
-		self.error_stream = error_stream
-		self.output_stream = output_stream
-		self.manager = manager
-		# start all other fields as None
-		self.test_infras = None
-		self.test_covs = None
-		self.test_lints = None
-		self.nested_test_commands = None
-		self.num_passing = None
-		self.num_failing = None
-		self.timed_out = False
-		self.VERBOSE_MODE = VERBOSE_MODE
-
-	def set_test_command( self, test_command):
-		self.test_command = test_command
-
-	def compute_test_infras( self):
-		self.test_infras = []
-		self.test_covs = []
-		self.test_lints = []
-		self.nested_test_commands = []
-		if self.test_command:
-			self.test_infras += [ ti for ti in TestInfo.TRACKED_INFRAS if called_in_command(ti, self.test_command, self.manager) ]
-			self.test_infras += [ ri for ri in TestInfo.TRACKED_RUNNERS if called_in_command(ri, self.test_command, self.manager) ]
-			self.test_covs += [ TestInfo.TRACKED_COVERAGE[ti] for ti in TestInfo.TRACKED_COVERAGE if called_in_command(ti, self.test_command, self.manager) ]
-			self.test_lints += [ TestInfo.TRACKED_LINTERS[ti] for ti in TestInfo.TRACKED_LINTERS if called_in_command(ti, self.test_command, self.manager) ]
-		self.test_infras = list(set(self.test_infras))
-		self.test_covs = list(set(self.test_covs))
-		self.test_lints = list(set(self.test_lints))
-		# TODO: maybe we can also figure it out from the output stream
-
-	def compute_nested_test_commands( self, test_commands):
-		# one might think that we should only check the package's own manager
-		# however, it's common to mix and match (esp. to run commands with "npm run" even if the package manager is yarn)
-		self.nested_test_commands += [ tc for tc in test_commands if called_in_command( "npm run " + tc, self.test_command, self.manager) ]
-		self.nested_test_commands += [ tc for tc in test_commands if called_in_command( "yarn " + tc, self.test_command, self.manager) ]
-
-	def compute_test_stats( self):
-		if not self.test_infras or self.test_infras == []:
-			return
-		test_output = self.output_stream.decode('utf-8') + self.error_stream.decode('utf-8')
-		ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
-		test_output = ansi_escape.sub('', test_output)
-		self.num_passing = 0
-		self.num_failing = 0
-		self.timed_out = (self.error_stream.decode('utf-8') == "TIMEOUT ERROR")
-		for infra in self.test_infras:
-			output_checker_names = TestInfo.TRACKED_INFRAS.get(infra, {}).get("output_checkers", [])
-			if infra in TestInfo.TRACKED_RUNNERS and output_checker_names == []:
-				output_checker_names = self.OUTPUT_CHECKERS.keys() # all the checkers
-			for checker_name in output_checker_names:
-				div_factor = 2 if checker_name == "ava_2" else 1
-				checker = self.OUTPUT_CHECKERS[ checker_name]
-				self.num_passing += int(test_cond_count( test_output, checker["output_regex_fct"], checker["passing"][0], checker["passing"][1]) / div_factor)
-				self.num_failing += int(test_cond_count( test_output, checker["output_regex_fct"], checker["failing"][0], checker["failing"][1]) / div_factor)
-
-	def get_json_rep( self):
-		json_rep = {}
-		if self.VERBOSE_MODE:
-			json_rep["test_debug"] = ""
-		if not self.success:
-			json_rep["ERROR"] = True
-			if self.VERBOSE_MODE:
-				json_rep["test_debug"] += "\nError output: " + self.error_stream.decode('utf-8')
-		if self.num_passing is not None and self.num_failing is not None:
-			json_rep["num_passing"] = self.num_passing
-			json_rep["num_failing"] = self.num_failing
-		if self.VERBOSE_MODE:
-			json_rep["test_debug"] += "\nOutput stream: " + self.output_stream.decode('utf-8')
-		if self.test_infras and self.test_infras != []:
-			json_rep["test_infras"] = [TestInfo.TRACKED_INFRAS.get(infra, {}).get("name", "Custom Testing: " + infra) for infra in self.test_infras]
-		if self.test_covs and self.test_covs != []:
-			json_rep["test_coverage_tools"] = self.test_covs
-		if self.test_lints and self.test_lints != []:
-			json_rep["test_linters"] = self.test_lints
-		if self.nested_test_commands and self.nested_test_commands != []:
-			json_rep["nested_test_commands"] = self.nested_test_commands
-		if "test_infras" not in json_rep:
-			json_rep["RUNS_NEW_USER_TESTS"] = False
-		json_rep["timed_out"] = self.timed_out
-		return( json_rep)
-
-	def __str__(self):
-		to_ret = ""
-		if not self.success:
-			to_ret += "ERROR"
-			if self.VERBOSE_MODE:
-				to_ret += "\nError output: " + self.error_stream.decode('utf-8')
+# instrument the test command specified to make it produce verbose output to a file
+def instrument_test_command_for_verbose(test_script, test_infra, infra_verbosity_args, verbose_test_json, infra_verbosity_args_pos):
+	# replace the output file name with the custom output filename
+	# add an index to the filename for the 2nd,+ time the filename shows up
+	# so as to avoid overwriting the files
+	num_files = 0
+	new_infra_verbosity_args = ""
+	output_files = []
+	for i, sub in enumerate(infra_verbosity_args.split("$PLACEHOLDER_OUTPUT_FILE_NAME$")):
+		out_file_object = { "test_script": test_script, "test_infra": test_infra }
+		# not the file name
+		if sub != "": 
+			new_infra_verbosity_args += sub
 		else:
-			to_ret += "SUCCESS"
-		if self.num_passing is not None and self.num_failing is not None:
-			to_ret += "\nPassing tests: " + str(self.num_passing) + "\nFailing tests: " + str(self.num_failing)
-		if self.VERBOSE_MODE:
-			to_ret += "\nOutput stream: " + self.output_stream.decode('utf-8')
-		if self.test_infras and self.test_infras != []:
-			to_ret += "\nTest infras: " + str([TestInfo.TRACKED_INFRAS[infra]["name"] for infra in self.test_infras])
-		if self.test_covs and self.test_covs != []:
-			to_ret += "\nCoverage testing: " + str(self.test_covs)
-		if self.test_lints and self.test_lints != []:
-			to_ret += "\nLinter: " + str(self.test_lints)
-		if self.nested_test_commands and self.nested_test_commands != []:
-			to_ret += "\nNested test commands: " + str(self.nested_test_commands)
-		to_ret += "\nTimed out: " + str(self.timed_out)
-		return( to_ret)
+			path_index = verbose_test_json.rfind("/")
+			if path_index == -1:
+				output_file = "out_" + str(num_files) + "_" + verbose_test_json 
+				new_infra_verbosity_args += output_file
+				out_file_object["output_file"] = output_file
+			else:
+				output_file = verbose_test_json[:path_index] + "/out_" + str(num_files) + "_" + verbose_test_json[path_index + 1:]
+				print(output_file)
+				new_infra_verbosity_args += output_file
+				out_file_object["output_file"] = output_file
+			output_files += [ out_file_object ]
+			num_files += 1
+	infra_verbosity_args = new_infra_verbosity_args
+	# split into sub-commands
+	command_split_chars = [ "&&", ";"]
+	infra_calls = test_script.split(test_infra)
+	real_calls = []
+	for maybe_call in infra_calls:
+		# if the last char in the string is not whitespace and not a command delimiter,
+		# and it's not the last string in the split
+		# then it's a string that is appended to the front of the name of the infra (e.g., "\"jest\"") 
+		# and not a call 
+		# rebuild it
+		if i < len(infra_calls) - 1 and maybe_call != "" and (not maybe_call[-1].isspace()) and (not any([maybe_call.endswith(s) for s in command_split_chars])):
+			if len(real_calls) > 0:
+				real_calls[-1] += test_infra + maybe_call
+				continue
+		# if the first char in the string is not whitespace and not a command delimiter,
+		# and it's not the first string in the split
+		# then it's a string that is appended to the back of the name of the infra (e.g., jest".config.js")
+		# and not a call either
+		# rebuild it
+		if i > 0 and maybe_call != "" and (not maybe_call[0].isspace()) and (not any([maybe_call.startswith(s) for s in command_split_chars])):
+			if len(real_calls) > 0:
+				real_calls[-1] += test_infra + maybe_call
+				continue
+		real_calls += [ maybe_call ]
+	infra_calls = real_calls
+	instrumented_test_command = []
+	for i, infra_call in enumerate(infra_calls):
+		# if the current call is empty string
+		# then this is the call to the testing infra and the next is the arguments 
+		# so, skip this one
+		# if there are no args (i.e. no next string), then just instrument this one
+		if infra_call == "" and i < len(infra_calls) - 1:
+			instrumented_test_command += [ "" ]
+			continue
+		# if the first call is non-empty and there's more than one call, then it's pre-test-infra and we skip it too
+		elif len(infra_calls) > 1 and infra_call != "" and i == 0:
+			instrumented_test_command += [ "" ]
+			continue
+		# get the arguments, splitting off from any other non-test commands that might be
+		# in this command (note: we know all the commands started with test_infra)
+		end_command_pos = re.search(r'|'.join(command_split_chars), infra_call)
+		end_command_pos = end_command_pos.start() if not end_command_pos is None else -1
+		sub_command_args = (infra_call[0:end_command_pos] if end_command_pos > -1 else infra_call).split(" ")
+		if infra_verbosity_args_pos != -1:
+			sub_command_args.insert(infra_verbosity_args_pos, infra_verbosity_args)
+		else:
+			sub_command_args.append(infra_verbosity_args)
+		# rebuild the command, re-attaching any extra sub-commands
+		instrumented_test_command += [ " ".join(sub_command_args) + (infra_call[end_command_pos:] if end_command_pos > -1 else "") ]
+	return(test_infra.join(instrumented_test_command), output_files)
 
 def on_diagnose_exit( json_out, crawler, cur_dir, repo_name):
+	# if we still have the temp package.json, restore it
+	if os.path.isfile("TEMP_package.json_TEMP"):
+		run_command( "mv TEMP_package.json_TEMP package.json")
 	# move back to the original working directory
 	if repo_name != "":
 		os.chdir( cur_dir)
@@ -390,7 +317,40 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	else:
 		print( "Package repository already exists. Using existing directory: " + repo_name)
 	
+	# diagnose the repo dir
+	return( diagnose_repo_name(repo_name, crawler, json_out, cur_dir, commit_SHA=commit_SHA))
 
+def diagnose_local_dir(repo_dir, crawler):
+	json_out = {}
+	repo_name = ""
+	cur_dir = os.getcwd()
+	repo_name = repo_dir.split("/")[-1]
+	if not os.path.isdir(repo_dir):
+		print("ERROR using local directory: " + repo_dir + " invalid directory path")
+		json_out["setup"] = {}
+		json_out["setup"]["local_dir_ERROR"] = True
+		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	
+	print("Diagnosing: " + repo_name + " --- from: " + repo_dir)
+	if not os.path.isdir("TESTING_REPOS"):
+		os.mkdir("TESTING_REPOS")
+	os.chdir("TESTING_REPOS")
+
+	# if the repo already exists, dont clone it
+	if not os.path.isdir( repo_name):
+		print( "Copying package directory")
+		error, output, retcode = run_command( "cp -r " + repo_dir + " " + repo_name)
+		if retcode != 0:
+			print("ERROR copying the directory. Exiting now.")
+			json_out["setup"] = {}
+			json_out["setup"]["local_dir_ERROR"] = True
+			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+	else:
+		print( "Package directory already exists. Using existing directory: " + repo_name)
+	# diagnose the repo dir
+	return( diagnose_repo_name(repo_name, crawler, json_out, cur_dir))
+
+def diagnose_repo_name(repo_name, crawler, json_out, cur_dir, commit_SHA=None):
 	# move into the repo and begin testing
 	os.chdir( repo_name)
 
@@ -415,10 +375,36 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		json_out["setup"]["pkg_json_ERROR"] = True
 		return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 
-	# first, the install
 	manager = ""
+	# if there's custom lock files, copy them into the repo (repo is "." since we're in the repo currently)
+	if crawler.CUSTOM_LOCK_FILES != []:
+		for custom_lock in crawler.CUSTOM_LOCK_FILES:
+			run_command("cp " + custom_lock + " .")
+
+	# first, check if there is a custom install
+	# this runs custom scripts the same way as the scripts_over_code below; only 
+	# difference is it's before the npm-filter run
+	if crawler.CUSTOM_SETUP_SCRIPTS != []:
+		json_out["custom_setup_scripts"] = {}
+		for script in crawler.CUSTOM_SETUP_SCRIPTS:
+			print("Running custom setup script script over code: " + script)
+			json_out["custom_setup_scripts"][script] = {}
+			error, output, retcode = run_command( script)
+			script_output = output.decode('utf-8') + error.decode('utf-8')
+			ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+			script_output = ansi_escape.sub('', script_output)
+			json_out["custom_setup_scripts"][script]["output"] = script_output
+			if retcode != 0:
+				json_out["custom_setup_scripts"][script]["ERROR"] = True
+
+	# check if the install is done (check if there is a node_modules folder)
+	already_installed = os.path.isdir("node_modules")
+
+	# then, the install
 	if crawler.DO_INSTALL:
-		(manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
+		(new_manager, retcode, installer_command, installer_debug) = run_installation( pkg_json, crawler)
+		if manager == "":
+			manager = new_manager
 		json_out["installation"] = {}
 		json_out["installation"]["installer_command"] = installer_command
 		if crawler.VERBOSE_MODE:
@@ -426,9 +412,13 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 		if retcode != 0:
 			print("ERROR -- installation failed")
 			json_out["installation"]["ERROR"] = True
-			return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
+			if not already_installed:
+				return( on_diagnose_exit( json_out, crawler, cur_dir, repo_name))
 	else:
 		json_out["installation"] = { "do_install": False }
+
+	if manager == "": # default the manager to npm if it wasn't already IDd
+		manager = "npm run "
 
 	if crawler.COMPUTE_DEP_LISTS:
 		json_out["dependencies"] = {}
@@ -443,8 +433,8 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	# now, proceed with the build
 	if crawler.TRACK_BUILD:
 		json_out["build"] = {}
-		if not crawler.DO_INSTALL:
-			print("Can't do build without installing (do_install: false) -- skipping")
+		if not crawler.DO_INSTALL and not already_installed:
+			print("Can't do build without installing (do_install: false and not already installed) -- skipping")
 		else:
 			(retcode, build_script_list, build_debug) = run_build( manager, pkg_json, crawler)
 			json_out["build"]["build_script_list"] = build_script_list
@@ -459,10 +449,10 @@ def diagnose_package( repo_link, crawler, commit_SHA=None):
 	# then, the testing
 	if crawler.TRACK_TESTS:
 		json_out["testing"] = {}
-		if not crawler.DO_INSTALL:
-			print("Can't run tests without installing (do_install: false) -- skipping")
+		if not crawler.DO_INSTALL and not already_installed:
+			print("Can't run tests without installing (do_install: false and not already installed) -- skipping")
 		else:
-			(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler)
+			(retcode, test_json_summary) = run_tests( manager, pkg_json, crawler, repo_name, cur_dir)
 			json_out["testing"] = test_json_summary
 	else:
 		json_out["testing"] = { "track_tests": False }
